@@ -39,7 +39,7 @@ def _calculate_metrics(result : str):
     seconds_runtime = (run_stop_time - run_start_time) / 1000 
 
     # calculate throughput, which is score
-    throughput = num_batches * batch_size / seconds_runtime # todo if these divisons are by 0
+    throughput = num_batches * batch_size / seconds_runtime # todo if these divisons are by 0 catch exception
     average_batch_time = seconds_runtime / num_batches
     return {'score' : throughput, 'num_batches' : num_batches, 'batch_size' : batch_size, 'average_batch_time': average_batch_time}
 
@@ -82,13 +82,12 @@ def init_argparse() -> argparse.ArgumentParser:
         usage="%(prog)s [FOLDER_PATH]",
         description="Summarize a folder of logged benchmark result files."
     )
-    parser.add_argument('folder_path', nargs='*')
+    parser.add_argument('folder_path', type=str)
     return parser
 
 if __name__ == '__main__':
     parser = init_argparse()
     args = parser.parse_args()
-
     summarize_folder = '.' # default this folder
     if args.folder_path:
         summarize_folder = args.folder_path
