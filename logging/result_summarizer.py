@@ -79,16 +79,15 @@ def summarize_results(benchmark_folder):
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        usage="%(prog)s [FOLDER_PATH]",
         description="Summarize a folder of logged benchmark result files."
     )
-    parser.add_argument('folder_path', type=str)
+    parser.add_argument('-f', '--benchmark_folder', type=str)
     return parser
 
 if __name__ == '__main__':
     parser = init_argparse()
     args = parser.parse_args()
     summarize_folder = '.' # default this folder
-    if args.folder_path:
-        summarize_folder = args.folder_path
+    if args.benchmark_folder:
+        summarize_folder = args.benchmark_folder
     summarize_results(summarize_folder)
