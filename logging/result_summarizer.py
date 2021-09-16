@@ -2,6 +2,7 @@
 Summarizes a set of results.
 '''
 
+import argparse
 import json
 import os
 import re
@@ -54,21 +55,41 @@ def _create_summary_row(file_path : str):
     row['results'] = _calculate_metrics(result)
     return row
 
-def summarize_results(benchmark_folder, csv_file=None):
+def summarize_results(benchmark_folder):
     """Summarizes a set of results.
     Args:
         folder: The folder for a submission package.
         ruleset: The ruleset such as 0.6.0, 0.7.0, or 1.0.0.
     """
     rows = []
-    pattern = '{folder}/*.log'.format(folder=benchmark_folder)
+    pattern = '{folder}/*.log'.format(folder=benchmark_folder) # TODO allow other kinds of files
     result_files = glob.glob(pattern, recursive=True)
+    if(len(result_files) == 0):
+        print('No result files to summarize!')
+        return
+    print('Summarizing files: {}'.format(result_files))
     for file_path in result_files:
         row = _create_summary_row(file_path)
         rows.append(row)
 
     for row in rows:
-        print(row)
+        print(row) # TODO log into a file in the same folder as benchmark_folder. Have it overwrite the file too. 
+
+
+
+def init_argparse() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        usage="%(prog)s [FOLDER_PATH]",
+        description="Summarize a folder of logged benchmark result files."
+    )
+    parser.add_argument('folder_path', nargs='*')
+    return parser
 
 if __name__ == '__main__':
-    summarize_results('.')
+    parser = init_argparse()
+    args = parser.parse_args()
+
+    summarize_folder = '.' # default this folder
+    if args.folder_path:
+        summarize_folder = args.folder_path
+    summarize_results(summarize_folder)

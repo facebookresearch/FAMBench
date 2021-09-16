@@ -5,7 +5,7 @@ import time
 def dummy_example():
   """Example usage of fb5logger"""
 
-  logger = FB5Logger("example_simple.log") # file to write to
+  logger = FB5Logger("example_simple.log") # file to write to. works only with .log
   logger.header("DLRM", "OOTB", "train", "small") # benchmark, implementation, mode, config
 
   logger.run_start() 

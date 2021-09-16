@@ -7,10 +7,11 @@ import time
 class FB5Logger():
 
     def __init__(self, log_file_path):
+        open(log_file_path, 'w') # create or overwrite file
         self.log_file_path = log_file_path
 
     def _dump_json(self, dict):
-        with open(self.log_file_path, 'a') as f:
+        with open(self.log_file_path, 'a') as f: 
             json.dump(dict, f)
             f.write('\n')
     
