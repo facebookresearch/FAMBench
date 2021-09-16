@@ -13,4 +13,4 @@ do
 done
 shift $((OPTIND-1))
 
-python ../../../../param/train/compute/pt/driver.py --steps=$steps --device=$device linear --dataset='A'
+python dlrm_ubench_train_driver.py --steps=$steps --device=$device linear --dataset='A'
