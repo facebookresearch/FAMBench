@@ -73,7 +73,7 @@ def summarize_results(benchmark_folder):
         rows.append(row)
 
     for row in rows:
-        print(row) # TODO log into a file in the same folder as benchmark_folder. Have it overwrite the file too. 
+        print(row) # TODO log into a file in the same folder as benchmark_folder. Have it overwrite the file too.
 
 
 
@@ -81,13 +81,10 @@ def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Summarize a folder of logged benchmark result files."
     )
-    parser.add_argument('-f', '--benchmark_folder', type=str)
+    parser.add_argument('-f', '--benchmark-folder', type=str, default='.')
     return parser
 
 if __name__ == '__main__':
     parser = init_argparse()
     args = parser.parse_args()
-    summarize_folder = '.' # default this folder
-    if args.benchmark_folder:
-        summarize_folder = args.benchmark_folder
-    summarize_results(summarize_folder)
+    summarize_results(args.benchmark_folder)

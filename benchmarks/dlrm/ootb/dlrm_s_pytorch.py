@@ -97,6 +97,13 @@ from tricks.md_embedding_bag import PrEmbeddingBag, md_solver
 # quotient-remainder trick
 from tricks.qr_embedding_bag import QREmbeddingBag
 
+# FB5 Logger
+import pathlib
+from os import fspath
+p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+sys.path.append(fspath(p))
+from fb5logger import FB5Logger
+
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
     try:
@@ -1007,6 +1014,9 @@ def run():
     parser.add_argument("--lr-num-warmup-steps", type=int, default=0)
     parser.add_argument("--lr-decay-start-step", type=int, default=0)
     parser.add_argument("--lr-num-decay-steps", type=int, default=0)
+    # FB5 Logging
+    parser.add_argument("--fb5logger", type=str, default=None)
+    parser.add_argument("--fb5config", type=str, default="small")
 
     global args
     global nbatches
@@ -1024,6 +1034,13 @@ def run():
         mlperf_logger.log_start(
             key=mlperf_logger.constants.INIT_START, log_all_ranks=True
         )
+
+    if args.fb5logger is not None:
+        fb5logger = FB5Logger(args.fb5logger)
+        if args.inference_only:
+            fb5logger.header("DLRM", "OOTB", "eval", args.fb5config)
+        else:
+            fb5logger.header("DLRM", "OOTB", "train", args.fb5config)
 
     if args.weighted_pooling is not None:
         if args.qr_flag:
@@ -1489,6 +1506,10 @@ def run():
     with torch.autograd.profiler.profile(
         args.enable_profiling, use_cuda=use_gpu, record_shapes=True
     ) as prof:
+
+        if args.fb5logger is not None:
+            fb5logger.run_start()
+
         if not args.inference_only:
             k = 0
             total_time_begin = 0
@@ -1761,6 +1782,9 @@ def run():
                 device,
                 use_gpu,
             )
+
+    if args.fb5logger is not None:
+        fb5logger.run_stop(nbatches, args.mini_batch_size)
 
     # profiling
     if args.enable_profiling:
