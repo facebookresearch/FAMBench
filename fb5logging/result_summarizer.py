@@ -41,7 +41,6 @@ def _calculate_metrics(result : str):
     # calculate throughput, which is score
     throughput = num_batches * batch_size / seconds_runtime # todo if these divisons are by 0 catch exception
     average_batch_time = seconds_runtime / num_batches
-
     result = {'score' : throughput, 'num_batches' : num_batches, 'batch_size' : batch_size, 'average_batch_time': average_batch_time}
 
     #append extra_metadaata if present
