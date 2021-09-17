@@ -29,16 +29,13 @@ if __name__ == "__main__":
     parser.add_argument('--warmups', type=int, default=10, help="warmup times")
     parser.add_argument('--steps', type=int, default=100, help="repeat times")
     parser.add_argument('--device', type=str, choices=['cpu', 'gpu', 'tpu'], required=True, help='valid devices')
+    parser.add_argument("--fb5logger", type=str, default=None)
 
     subparsers = parser.add_subparsers(title='kernels', dest='kernel')
     subparsers.required = True
 
-    parser_gemm = subparsers.add_parser('gemm', help='measure mm performance (m,k)*(k,n)=(m,n)')
-    parser_gemm.add_argument('-t', '--dtype', type=str, default="float32")
-    parser_gemm.add_argument('-d', '--dataset', choices=['A', 'B', 'C'], default='A')
-
     parser_emb = subparsers.add_parser('emb', help='measure EmbeddingBag performance')
-    parser_emb.add_argument('-d', '--dataset', choices=['A', 'B'], default='A')
+    parser_emb.add_argument('-d', '--dataset', choices=['A', 'B', 'small'], default='A')
     parser_emb.add_argument("--randomseed", type=int, default=0)
     parser_emb.add_argument("--usexlabag", action='store_true', help='use xlabad instead of embeddingbag')
     parser_emb.add_argument("--alpha", default=0.0, help="Zipf param. Use uniform if == 0.0")
@@ -46,10 +43,9 @@ if __name__ == "__main__":
     parser_linear = subparsers.add_parser('linear', help='measure mlp performance')
     parser_linear.add_argument('--optimizer-type', default='sgd', help='Optimizer: SGD', choices=['sgd'])
     parser_linear.add_argument('-t', '--dtype', default='float', help="data type", choices=["float", "float16", "bfloat16"])
-    parser_linear.add_argument('-d', '--dataset', choices=['A'], default='A')
+    parser_linear.add_argument('-d', '--dataset', choices=['A','small'], default='small')
 
     # FB5 Logging
-    parser.add_argument("--fb5logger", type=str, default=None)
 
     args=parser.parse_args()
 
@@ -59,36 +55,60 @@ if __name__ == "__main__":
     #fb5 logging header
     if args.fb5logger is not None:
         fb5logger = FB5Logger(args.fb5logger)
-        fb5logger.header("DLRM", "UBENCH", "train", args.kernel)
+        fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset)
 
     if args.kernel == 'emb':
         print("with emb dataset ", args.dataset)
+        global_bytes = 0
+        global_elap = 0
+        if args.fb5logger is not None:
+            fb5logger.run_start()
         if args.dataset == 'A':
-            kemb.run(args, dataset.emb_A)
+            run_dataset = dataset.emb_A
         elif args.dataset == 'B':
-            kemb.run(args, dataset.emb_B)
-
+            run_dataset = dataset.emb_B
+        else:
+            small_dataset = [ (4800000, 56, 34, 2048),
+                        (4800000, 56, 34, 4096),]
+            run_dataset = small_dataset
+        for i in range(len(run_dataset)):
+            features, embdim, nnz, batch = run_dataset[i]
+            elap, total_bytes = kemb.run_single(args, features, embdim, nnz, batch)
+            elap /= args.steps
+            total_bytes /= 1.0e6
+            global_bytes += total_bytes
+            global_elap += elap
+        if args.fb5logger is not None:
+            extra_metadata={"GB/s": global_bytes / global_elap / 1.0e3, "ELAP": global_elap, "BYTES": global_bytes}
+            fb5logger.run_stop(args.steps, 1, extra_metadata=extra_metadata)
     else:
         print("with linear dataset ", args.dataset, ", Data type: ", args.dtype)
-        total_flops = 0
-        total_elap = 0
-        if args.dataset == 'A':
+        global_flops = 0
+        global_elap = 0
+        if args.fb5logger is not None:
             fb5logger.run_start()
-            for i in range(len(dataset.mlp_A)):
-                layer_num, input_size, hidden_size, output_size, batch_size = dataset[i]
-                elap, loss = klinear.run_single(
-                    args, layer_num, input_size, hidden_size, output_size, batch_size
-                )
-                elap /= args.steps
+        if args.dataset == 'A':
+            run_dataset = dataset.mlp_A
+        else:
+            small_dataset = [ (18, 1024, 1024, 1024, 128),
+                        (18, 1024, 1024, 1024, 256),]
+            run_dataset = small_dataset
+        for i in range(len(run_dataset)):
+            layer_num, input_size, hidden_size, output_size, batch_size = run_dataset[i]
+            elap, loss = klinear.run_single(
+                args, layer_num, input_size, hidden_size, output_size, batch_size
+            )
+            elap /= args.steps
 
-                flops = batch_size * (
-                    hidden_size * hidden_size * layer_num
-                    + hidden_size * input_size
-                    + hidden_size * output_size
-                )
-                # Forward 2x and Backward 4x
-                flops *= 6
-                total_flops += flops
-                total_elap += elap
-            extra_metadata={"TF/s": total_flops / total_elap / 1.0e12, "ELAP": total_elap, "FLOPS": total_flops}
+            flops = batch_size * (
+                hidden_size * hidden_size * layer_num
+                + hidden_size * input_size
+                + hidden_size * output_size
+            )
+            # Forward 2x and Backward 4x
+            flops *= 6
+            global_flops += flops
+            global_elap += elap
+        if args.fb5logger is not None:
+            extra_metadata={"TF/s": global_flops / global_elap / 1.0e12, "ELAP": global_elap, "FLOPS": global_flops}
             fb5logger.run_stop(args.steps, 1, extra_metadata=extra_metadata)
