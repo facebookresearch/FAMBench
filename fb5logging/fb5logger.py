@@ -31,7 +31,9 @@ class FB5Logger():
         start_dict = {"time_ms": self._time_ms(), "key": "run_start"}
         self._dump_json(start_dict)
 
-    def run_stop(self, num_batches, batch_size, extra_metadata):
-        start_dict = {"time_ms": self._time_ms(), "num_batches": num_batches, "batch_size": batch_size, "key": "run_stop", "extra_metadata": extra_metadata}
+    def run_stop(self, num_batches, batch_size, extra_metadata = None):
+        start_dict = {"time_ms": self._time_ms(), "num_batches": num_batches, "batch_size": batch_size, "key": "run_stop"}
+        if extra_metadata is not None:
+            start_dict["extra_metadata"] = extra_metadata
         self._dump_json(start_dict)
 
