@@ -26,7 +26,12 @@ def _find_and_read_row(result : str, regex : str):
 
 def _calculate_metrics(result : str):
     """
-    Calculates the main score for the benchmark run and other metrics/metadata. 
+    Calculates results dictionary with the following keys:
+      score = examples / sec
+      num_batches = number of batches
+      batch_size = number of examples per batch
+      average_batch_time = seconds / batch 
+      extra_metadata = any extra information - may be used for future summary info
     """
     run_start_row = _find_and_read_row(result, _RUN_START_REGEX)
     run_stop_row = _find_and_read_row(result, _RUN_STOP_REGEX)
@@ -38,7 +43,7 @@ def _calculate_metrics(result : str):
     seconds_runtime = (run_stop_time - run_start_time) / 1000
 
     # calculate throughput, which is score
-    throughput = num_batches * batch_size / seconds_runtime # todo if these divisons are by 0 catch exception
+    throughput = num_batches * batch_size / seconds_runtime # TODO if these divisons are by 0 catch exception
     average_batch_time = seconds_runtime / num_batches
     result = {'score' : throughput, 'num_batches' : num_batches, 'batch_size' : batch_size, 'average_batch_time': average_batch_time}
 
@@ -107,10 +112,8 @@ def _rows_to_file(rows: list[dict], folder_path: str):
         
 
 def summarize_results(benchmark_folder):
-    """Summarizes a set of results.
-    Args:
-        folder: The folder for a submission package.
-        ruleset: The ruleset such as 0.6.0, 0.7.0, or 1.0.0.
+    """
+    Summarizes a set of results.
     """
     rows = []
     pattern = '{folder}/*.log'.format(folder=benchmark_folder) # TODO allow other kinds of files
@@ -125,8 +128,11 @@ def summarize_results(benchmark_folder):
 
     for row in rows:
         print(row) 
+<<<<<<< HEAD
 
     return rows
+=======
+>>>>>>> 71dd7c28769faba599c19746d8b40d9c8d045833
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(

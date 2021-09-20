@@ -1016,7 +1016,7 @@ def run():
     parser.add_argument("--lr-num-decay-steps", type=int, default=0)
     # FB5 Logging
     parser.add_argument("--fb5logger", type=str, default=None)
-    parser.add_argument("--fb5config", type=str, default="small")
+    parser.add_argument("--fb5config", type=str, default="tiny")
 
     global args
     global nbatches
