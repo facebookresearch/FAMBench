@@ -1,14 +1,11 @@
 # Deep Learning Recommendation Model for Personalization and Recommendation Systems:
-------------------------------------------------------------------------------------
 
 Copyright (c) Facebook, Inc. and its affiliates.
 
 ## Summary
-----------
 Deep Learning Recommendation Model (DLRM) supports various flags to control the model characteristics and execution sizes. This document introduces a bash script to toggle between the configurations used for benchmarking.
 
 ## Getting Started with DLRM
-----------------------------
 Navigate to the DLRM benchmark script from the top level of the repo.
 ```
 cd benchmarks
@@ -34,7 +31,6 @@ Summarizing files: ['results/dlrm_ootb_train_tiny.log']
 ```
 
 ### Additional Configurations
------------------------------
 You may choose to run your own model configuration. To do so, create a config file containing all flags for `dlrm_s_pytorch.py` on a single line. For example, create a file called `dlrm_tutorial` with contents:
 
 ```
@@ -77,7 +73,6 @@ Finished training it 1000/1000 of epoch 0, 46.44 ms/it, loss 0.082861
 ```
 
 ## Requirements
----------------
 pytorch-nightly
 
 scikit-learn
