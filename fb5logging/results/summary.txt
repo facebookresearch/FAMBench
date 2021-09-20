@@ -1,0 +1,3 @@
+benchmark implementation mode config score num_batches batch_size average_batch_time
+DLRM OOTB train small 3193.6127744510977 100 32 0.01002
+DLRM OOTB train small 3196.8031968031974 100 32 0.010009999999999998
