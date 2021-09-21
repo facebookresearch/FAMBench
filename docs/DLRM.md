@@ -72,6 +72,9 @@ Finished training it 1000/1000 of epoch 0, 46.44 ms/it, loss 0.082861
 === Completed Run ===
 ```
 
+### Inference
+You may also choose to run DLRM in Inference mode. To do so, follow the same steps as above using the `run_dlrm_ootb_infer.sh` script instead.
+
 ## Requirements
 pytorch-nightly
 
