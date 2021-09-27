@@ -126,13 +126,7 @@ def summarize_results(benchmark_folder):
         row = _create_summary_row(file_path)
         rows.append(row)
 
-    for row in rows:
-        print(row) 
-<<<<<<< HEAD
-
     return rows
-=======
->>>>>>> 71dd7c28769faba599c19746d8b40d9c8d045833
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
