@@ -32,7 +32,7 @@ class FB5Logger():
 
     def run_start(self, time_ms = None):
         """
-        Records start of logging
+        Records start of logging.
         """
         if(time_ms is None):
             time_ms = self._time_ms()
