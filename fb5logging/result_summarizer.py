@@ -70,11 +70,7 @@ def _create_summary_row(file_path : str):
     with open(file_path, 'r') as f:
         result = f.read()
 
-<<<<<<< HEAD
-    row = _find_and_read_row(result, _HEADER_REGEX)
-=======
     row = _find_and_read_row(result, constants.HEADER)
->>>>>>> erichan1/generalizelogging
     results = _calculate_metrics(result)
     row['results'] = results
     return row
