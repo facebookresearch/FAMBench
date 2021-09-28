@@ -8,16 +8,13 @@ import os
 import re
 import sys
 import glob
+import loggerconstants as constants
 
-
-_HEADER_REGEX = r'.*"key": "header".*'
-_RUN_START_REGEX = r'.*"key": "run_start".*'
-_RUN_STOP_REGEX = r'.*"key": "run_stop".*'
-
-def _find_and_read_row(result : str, regex : str):
+def _find_and_read_row(result : str, key : str):
     """
     Finds a single row in a log file string and converts it into a dict.
     """
+    regex = r'.*"key": "{}".*'.format(key)
     row = re.search(regex, result)
     if row is None:
       raise Exception('Failed to match regex!')
@@ -34,8 +31,8 @@ def _calculate_metrics(result : str):
       average_batch_time = seconds / batch 
       extra_metadata = any extra information - may be used for future summary info
     """
-    run_start_row = _find_and_read_row(result, _RUN_START_REGEX)
-    run_stop_row = _find_and_read_row(result, _RUN_STOP_REGEX)
+    run_start_row = _find_and_read_row(result, constants.RUN_START)
+    run_stop_row = _find_and_read_row(result, constants.RUN_STOP)
     num_batches, batch_size = run_stop_row['num_batches'], run_stop_row['batch_size']
 
     # calculate runtime
@@ -61,8 +58,9 @@ def _create_summary_row(file_path : str):
     with open(file_path, 'r') as f:
         result = f.read()
 
-    row = _find_and_read_row(result, _HEADER_REGEX)
-    row['results'] = _calculate_metrics(result)
+    row = _find_and_read_row(result, constants.HEADER)
+    results = _calculate_metrics(result)
+    row['results'] = results
     return row
 
 def summarize_results(benchmark_folder):
