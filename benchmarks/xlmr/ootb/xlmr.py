@@ -1,7 +1,6 @@
-
-
 import torch
 
+from fairseq.models.roberta import XLMRModel
 
 # FB5 Logger
 import pathlib
@@ -10,51 +9,71 @@ p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
 from fb5logger import FB5Logger
 
-def import_dataset():
-    pass
-    # TODO import the right dataset
+import torch.utils.data.datapipes as dp
+from torchdata.datapipes.iter import ZipArchiveReader
+from torchtext.data.datasets_utils import (
+    _wrap_split_argument,
+)
 
-def eval(self, niter=1):
-    trainer = self.trainer
-    for _ in range(niter):
-        # 1. forward the next_sentence_prediction and masked_lm model
-        next_sent_output, mask_lm_output = trainer.model.forward(*self.example_inputs)
+#download files to local_path from this URL
+URL = "https://dl.fbaipublicfiles.com/glue/data/SST-2.zip"
+local_path = "" # TODO make this the right path 
 
-        # 2-1. NLL(negative log likelihood) loss of is_next classification result
-        # 2-2. NLLLoss of predicting masked token word
-        # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
-        next_loss = trainer.criterion(next_sent_output, self.is_next)
-        mask_loss = trainer.criterion(mask_lm_output.transpose(1, 2), self.bert_label)
-        loss = next_loss + mask_loss
+@_wrap_split_argument(("train", "dev", "test"))
+def SST2(root, split):
+    loader_dp = dp.iter.FileLoader([local_path])
+    extracted_files = ZipArchiveReader(loader_dp)
+    filter_extracted_files = extracted_files.filter(lambda x: split in x[0])
+    return filter_extracted_files.parse_csv(skip_header=True, delimiter="\t").map(
+        lambda x: (x[0], int(x[1]))
+    )
+
+def process_dp(input_dp, pre_processor,batch_size):
+    # TODO: Convert datapipe to dataframe as proposed in Option 4 during Hack-week: Reference N1073381, N1135193
+    input_dp = input_dp.map(lambda x: (pre_processor(x[0]),x[1]))
+    input_dp = input_dp.batch(batch_size).rows2columnar(["token_ids","labels"])
+    input_dp = input_dp.map(lambda x: {"pad_token_ids": pad_sequence([torch.tensor(ids, dtype=torch.long) for ids in x["token_ids"]],\
+                            batch_first=True,padding_value=pre_processor.padding_idx),"labels":x["labels"]})
+    return input_dp
+
+def setup_inference():
+    """
+    Returns inference xlmr model and dataset
+    """
+    
+    fairseq_xlmr_large = torch.hub.load('pytorch/fairseq', 'xlmr.large')
+    fairseq_xlmr_large.eval()
+
+    test_dp = process_dp(SST2(split='dev'), xlmr_processor, batch_size)
+
+    return fairseq_xlmr_large, test_dp
+    # TODO use torchscript?
+
+def evaluate(test_dp, model):
+    """
+    evaluation loop for xlmr
+    """
+    model.eval() 
+    total_correct, total_count = 0.0, 0.0
+    with torch.no_grad():
+        for batch in test_dp:
+            model_input = batch["pad_token_ids"].to(device)
+            target = torch.tensor(batch["labels"]).to(device)
+            logits = model(model_input)
+            correct = (logits.argmax(1) == target).sum()
+            total_correct+=float(correct)
+            total_count+=float(target.size(0))
+    return total_correct/total_count
 
 def train(self, niter=1):
     # TODO need the right loss, correct optimizer/learning rate, etc
-
-    trainer = self.trainer
-    for _ in range(niter):
-        # 1. forward the next_sentence_prediction and masked_lm model
-        next_sent_output, mask_lm_output = trainer.model.forward(*self.example_inputs)
-
-        # 2-1. NLL(negative log likelihood) loss of is_next classification result
-        # 2-2. NLLLoss of predicting masked token word
-        # 2-3. Adding next_loss and mask_loss : 3.4 Pre-training Procedure
-        next_loss = trainer.criterion(next_sent_output, self.is_next)
-        mask_loss = trainer.criterion(mask_lm_output.transpose(1, 2), self.bert_label)
-        loss = next_loss + mask_loss
-
-        # 3. backward and optimization only in train
-        trainer.optim_schedule.zero_grad()
-        loss.backward()
-        trainer.optim_schedule.step_and_update_lr()
+    pass
 
 
 def run():
     # TODO parse args for --inference only, configs, etc
     
     dataset = import_dataset() 
-
-    # TODO setup the XLM-R model. Pick the right one - large, xl, xxl? 
-    xlmr = torch.hub.load('pytorch/fairseq', 'xlmr.xl')
 
     if args.fb5logger is not None:
         fb5logger = FB5Logger(args.fb5logger)
@@ -64,12 +83,13 @@ def run():
             fb5logger.header("XLMR", "OOTB", "train", args.fb5config)
             
     if args.fb5logger is not None:
-            fb5logger.run_start()
+        fb5logger.run_start()
 
-    if(): # not inference_only -> train it 
-        xlmr.train()
+    if(not args.inference_only): 
+        pass # TODO train side
     else:
-        xlmr.eval()  # disable dropout (or leave in train mode to finetune)
+        xlmr, test_dp = setup_inference()
+        accuracy = evaluate(test_dp, xlmr_classifier_base, xlmr_processor)
 
     if args.fb5logger is not None:
         fb5logger.run_stop(nbatches, args.mini_batch_size)
