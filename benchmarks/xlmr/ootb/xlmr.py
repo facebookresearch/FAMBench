@@ -1,6 +1,6 @@
 import torch
-
-from fairseq.models.roberta import XLMRModel
+import argparse
+import sys
 
 # FB5 Logger
 import pathlib
@@ -9,45 +9,32 @@ p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
 from fb5logger import FB5Logger
 
-import torch.utils.data.datapipes as dp
-from torchdata.datapipes.iter import ZipArchiveReader
-from torchtext.data.datasets_utils import (
-    _wrap_split_argument,
-)
+from torchtext.datasets import PennTreebank
 
-#download files to local_path from this URL
-URL = "https://dl.fbaipublicfiles.com/glue/data/SST-2.zip"
-local_path = "" # TODO make this the right path 
-
-@_wrap_split_argument(("train", "dev", "test"))
-def SST2(root, split):
-    loader_dp = dp.iter.FileLoader([local_path])
-    extracted_files = ZipArchiveReader(loader_dp)
-    filter_extracted_files = extracted_files.filter(lambda x: split in x[0])
-    return filter_extracted_files.parse_csv(skip_header=True, delimiter="\t").map(
-        lambda x: (x[0], int(x[1]))
-    )
-
-def process_dp(input_dp, pre_processor,batch_size):
-    # TODO: Convert datapipe to dataframe as proposed in Option 4 during Hack-week: Reference N1073381, N1135193
-    input_dp = input_dp.map(lambda x: (pre_processor(x[0]),x[1]))
-    input_dp = input_dp.batch(batch_size).rows2columnar(["token_ids","labels"])
-    input_dp = input_dp.map(lambda x: {"pad_token_ids": pad_sequence([torch.tensor(ids, dtype=torch.long) for ids in x["token_ids"]],\
-                            batch_first=True,padding_value=pre_processor.padding_idx),"labels":x["labels"]})
-    return input_dp
-
-def setup_inference():
-    """
-    Returns inference xlmr model and dataset
-    """
-    
-    fairseq_xlmr_large = torch.hub.load('pytorch/fairseq', 'xlmr.large')
+def get_inference_model():
+    fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.base') # TODO change to xlmr.large
     fairseq_xlmr_large.eval()
+    # TODO use torchscript? jit/script this model?
+    return fairseq_xlmr_large.model # TODO is this right? Send back model attribute?
 
-    test_dp = process_dp(SST2(split='dev'), xlmr_processor, batch_size)
+def get_inference_data():
+    test_dp = PennTreebank(split='test')
+    # TODO prepare this data properly 
 
-    return fairseq_xlmr_large, test_dp
-    # TODO use torchscript?
+    return test_dp
+
+def generate_inference_data(nbatches=1, batchsize=32, seq_length=100, vocab_size=1000):
+    shape = (nbatches, batchsize, seq_length)
+    data = torch.rand(shape) * vocab_size
+    data = data.int()
+    return data
+    
+def evaluate_simple(model, input_data):
+    """
+    Run data through the model
+    """
+    for batch in input_data:
+        output = model(batch)
 
 def evaluate(test_dp, model):
     """
@@ -57,8 +44,9 @@ def evaluate(test_dp, model):
     total_correct, total_count = 0.0, 0.0
     with torch.no_grad():
         for batch in test_dp:
-            model_input = batch["pad_token_ids"].to(device)
-            target = torch.tensor(batch["labels"]).to(device)
+            print(batch)
+            model_input = batch["pad_token_ids"] # TODO .to(device). same for next line
+            target = torch.tensor(batch["labels"])
             logits = model(model_input)
             correct = (logits.argmax(1) == target).sum()
             total_correct+=float(correct)
@@ -69,11 +57,18 @@ def train(self, niter=1):
     # TODO need the right loss, correct optimizer/learning rate, etc
     pass
 
+def init_argparse() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Benchmark XLM-R model"
+    )
+    parser.add_argument("--fb5logger", type=str, default=None)
+    parser.add_argument("--inference-only", action="store_true", default=False)
+    parser.add_argument("--fb5config", type=str, default="tiny")
+    return parser
 
 def run():
-    # TODO parse args for --inference only, configs, etc
-    
-    dataset = import_dataset() 
+    parser = init_argparse()
+    args = parser.parse_args()
 
     if args.fb5logger is not None:
         fb5logger = FB5Logger(args.fb5logger)
@@ -88,8 +83,15 @@ def run():
     if(not args.inference_only): 
         pass # TODO train side
     else:
-        xlmr, test_dp = setup_inference()
-        accuracy = evaluate(test_dp, xlmr_classifier_base, xlmr_processor)
+        # TODO get dataset and deal with all different nlp applications
+        data = generate_inference_data()
+        xlmr = get_inference_model()
+        evaluate_simple(xlmr, data) 
 
+    nbatches = 1
+    batch_size = 32
     if args.fb5logger is not None:
-        fb5logger.run_stop(nbatches, args.mini_batch_size)
+        fb5logger.run_stop(nbatches, batch_size)
+
+if __name__ == "__main__":
+    run()
