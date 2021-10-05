@@ -16,9 +16,9 @@ class FB5Logger():
         open(log_file_path, 'w') # create or overwrite file
         self.log_file_path = log_file_path
 
-    def _dump_json(self, dict):
+    def _dump_json(self, d: dict):
         with open(self.log_file_path, 'a') as f:
-            json.dump(dict, f)
+            json.dump(d, f)
             f.write('\n')
 
     def _time_ms(self):
