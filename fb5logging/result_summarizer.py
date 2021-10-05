@@ -75,55 +75,57 @@ def _create_summary_row(file_path : str):
     row['results'] = results
     return row
 
-def _lst_to_file(lst: list, file_path):
+def _dump_json(d: dict, file_path: str):
+    with open(file_path, 'a') as f:
+        json.dump(d, f)
+        f.write('\n')
+
+def _lst_to_file(lst: list, file_path: str):
     for i in range(len(lst)):
         lst[i] = str(lst[i])
     delimiter = ' ' #space delimiter
     with open(file_path, 'a') as f:
         f.write(delimiter.join(lst) + '\n')
 
-def _rows_to_file(rows: list[dict], folder_path: str):
+def _rows_to_file(rows: list[dict], folder_path: str, summary_view=constants.INTERMEDIATE_VIEW):
     """
     Save list of summary rows into a human-readable table in a file
     """
     file_path = folder_path + '/summary.txt'
-
     if(len(rows) == 0):
+        print('Nothing to summarize, no changes to summary file.')
         return
+    open(file_path, 'w') # create or overwrite file
 
-    all_keys = _flatten_dict(rows[0]).keys()
-    top_level_keys = [
-        "benchmark",
-        "implementation",
-        "mode",
-        "config",
-        "score"]
-    other_keys = [k for k in all_keys if k not in top_level_keys]
-    keys_in_order = top_level_keys + other_keys
-    _lst_to_file(keys_in_order, file_path)
-    for row in rows:
-        flattened_row = _flatten_dict(row)
-        top_val_lst = [flattened_row[k] for k in top_level_keys]
-        other_val_lst = [flattened_row[k] for k in other_keys]
-        combined_lst = top_val_lst + other_val_lst
-        _lst_to_file(combined_lst, file_path)
-        
+    if(summary_view == constants.INTERMEDIATE_VIEW):
+        top_level_keys = [
+            "benchmark",
+            "implementation",
+            "mode",
+            "config",
+            "score"]
+        _lst_to_file(top_level_keys, file_path)
+        for row in rows:
+            flattened_row = _flatten_dict(row)
+            top_val_lst = [flattened_row[k] for k in top_level_keys]
+            _lst_to_file(top_val_lst, file_path)
+    elif(summary_view == constants.RAW_VIEW):
+        for row in rows:
+            _dump_json(row, file_path)
+    else:
+        print('Summary view of wrong type - should never get here.')
 
-def summarize_results(benchmark_folder):
+def summarize_results(benchmark_folder) -> list[dict]:
     """
     Summarizes a set of results.
     """
     rows = []
     pattern = '{folder}/*.log'.format(folder=benchmark_folder) # TODO allow other kinds of files
     result_files = glob.glob(pattern, recursive=True)
-    if(len(result_files) == 0):
-        print('No result files to summarize!')
-        return
     print('Summarizing files: {}'.format(result_files))
     for file_path in result_files:
         row = _create_summary_row(file_path)
         rows.append(row)
-
     return rows
 
 def init_argparse() -> argparse.ArgumentParser:
@@ -131,10 +133,11 @@ def init_argparse() -> argparse.ArgumentParser:
         description="Summarize a folder of logged benchmark result files."
     )
     parser.add_argument('-f', '--benchmark-folder', type=str, default='.')
+    parser.add_argument('-v', '--summary-view', type=str, default=constants.INTERMEDIATE_VIEW)
     return parser
 
 if __name__ == '__main__':
     parser = init_argparse()
     args = parser.parse_args()
     rows = summarize_results(args.benchmark_folder)
-    _rows_to_file(rows, args.benchmark_folder)
+    _rows_to_file(rows, args.benchmark_folder, summary_view=args.summary_view)

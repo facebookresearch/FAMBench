@@ -1,5 +1,6 @@
 """
-Master list of constants (log keys) for logger
+Master list of constants for logger
+Mostly logger keys, but some other constants as well.
 """
 
 # header
@@ -18,3 +19,7 @@ FLOPS = "flops"
 
 # model hyperparameters
 LEARNING_RATE = "learning_rate"
+
+# type of summary constants
+INTERMEDIATE_VIEW = "intermediate_view"
+RAW_VIEW = "raw_view"
