@@ -27,7 +27,7 @@ class FB5Logger():
         """
         return round(time.time() * 1000)
 
-    def log_line(log_info : dict, key : str):
+    def log_line(self, log_info : dict, key : str):
         """
         Log a line with a dict of arbitrary form for the data and a string key. 
         """
@@ -58,11 +58,11 @@ class FB5Logger():
             time_ms = self._time_ms()
         stop_dict = {"time_ms": self._time_ms(), "num_batches": num_batches, "batch_size": batch_size}
         if extra_metadata is not None:
-            start_dict["extra_metadata"] = extra_metadata
-        self.log_line(start_dict, constants.RUN_STOP)
+            stop_dict["extra_metadata"] = extra_metadata
+        self.log_line(stop_dict, constants.RUN_STOP)
 
     def record_batch_info(self, num_batches = None, batch_size = None):
         nbatches_dict = {"num_batches": num_batches}
         batch_size_dict = {"batch_size": batch_size}
-        self.log_line(nbatches_dict , constants.BATCH_SIZE)
+        self.log_line(nbatches_dict, constants.BATCH_SIZE)
         self.log_line(batch_size_dict, constants.NUM_BATCHES)
