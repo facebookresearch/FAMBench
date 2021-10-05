@@ -20,6 +20,6 @@ FLOPS = "flops"
 # model hyperparameters
 LEARNING_RATE = "learning_rate"
 
-# type of summary constants
+# type of summary view saved to file
 INTERMEDIATE_VIEW = "intermediate_view"
 RAW_VIEW = "raw_view"
