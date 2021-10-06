@@ -241,7 +241,6 @@ class DLRM_Net(nn.Module):
         return torch.nn.Sequential(*layers)
 
     def create_emb(self, m, ln, weighted_pooling=None):
-        #print("create_emb start", str(time.time()))
         emb_l = nn.ModuleList()
         v_W_l = []
         for i in range(0, ln.size):
@@ -287,7 +286,6 @@ class DLRM_Net(nn.Module):
             else:
                 v_W_l.append(torch.ones(n, dtype=torch.float32))
             emb_l.append(EE)
-        #print("create_emb stop", str(time.time()))
         return emb_l, v_W_l
 
     def __init__(
@@ -426,9 +424,9 @@ class DLRM_Net(nn.Module):
                 per_sample_weights = None
 
             if self.quantize_emb:
-                #s1 = self.emb_l_q[k].element_size() * self.emb_l_q[k].nelement()
-                #s2 = self.emb_l_q[k].element_size() * self.emb_l_q[k].nelement()
-                #print("quantized emb sizes:", s1, s2)
+                # s1 = self.emb_l_q[k].element_size() * self.emb_l_q[k].nelement()
+                # s2 = self.emb_l_q[k].element_size() * self.emb_l_q[k].nelement()
+                # print("quantized emb sizes:", s1, s2)
 
                 if self.quantize_bits == 4:
                     QV = ops.quantized.embedding_bag_4bit_rowwise_offsets(
@@ -1508,10 +1506,6 @@ def run():
     tb_file = "./" + args.tensor_board_filename
     writer = SummaryWriter(tb_file)
 
-    #import scalene
-    #from scalene import scalene_profiler
-    #scalene.scalene_profiler.start()
-
     ext_dist.barrier()
 
     # Pre-cache training samples.
@@ -1913,12 +1907,7 @@ def run():
         # check the onnx model
         onnx.checker.check_model(dlrm_pytorch_onnx)
     total_time_end = time_wrap(use_gpu)
-    #scalene.scalene_profiler.stop()
 
 
 if __name__ == "__main__":
-    #print("\n\n*** ARGUMENTS ***")
-    #for arg in sys.argv:
-    #    print(arg)
-    #print("\n")
     run()
