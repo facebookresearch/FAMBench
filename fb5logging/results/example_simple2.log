@@ -1,3 +1,0 @@
-{"benchmark": "DLRM", "implementation": "OOTB", "mode": "train", "config": "small", "key": "header"}
-{"time_ms": 1631809142254, "key": "run_start"}
-{"time_ms": 1631809143256, "num_batches": 100, "batch_size": 32, "key": "run_stop"}

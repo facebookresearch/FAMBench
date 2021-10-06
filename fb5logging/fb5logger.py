@@ -3,6 +3,7 @@ import os
 import sys
 import json
 import time
+import loggerconstants as constants
 
 class FB5Logger():
 
@@ -15,9 +16,9 @@ class FB5Logger():
         open(log_file_path, 'w') # create or overwrite file
         self.log_file_path = log_file_path
 
-    def _dump_json(self, dict):
+    def _dump_json(self, d: dict):
         with open(self.log_file_path, 'a') as f:
-            json.dump(dict, f)
+            json.dump(d, f)
             f.write('\n')
 
     def _time_ms(self):
@@ -26,9 +27,19 @@ class FB5Logger():
         """
         return round(time.time() * 1000)
 
+    def log_line(self, log_info : dict, key : str):
+        """
+        Log a line with a dict of arbitrary form for the data and a string key. 
+        """
+        log_info['key'] = key
+        self._dump_json(log_info)
+
     def header(self, benchmark_name, implementation_name, mode, config_name):
-        header_dict = {"benchmark": benchmark_name, "implementation": implementation_name, "mode": mode, "config": config_name, "key": "header"}
-        self._dump_json(header_dict)
+        """
+        Required for every log. Describes what the benchmark is. 
+        """
+        header_dict = {"benchmark": benchmark_name, "implementation": implementation_name, "mode": mode, "config": config_name}
+        self.log_line(header_dict, constants.HEADER)
 
     def run_start(self, time_ms = None):
         """
@@ -36,8 +47,8 @@ class FB5Logger():
         """
         if(time_ms is None):
             time_ms = self._time_ms()
-        start_dict = {"time_ms": time_ms, "key": "run_start"}
-        self._dump_json(start_dict)
+        start_dict = {"time_ms": time_ms}
+        self.log_line(start_dict, constants.RUN_START)
 
     def run_stop(self, num_batches, batch_size, extra_metadata = None, time_ms = None):
         """
@@ -45,8 +56,13 @@ class FB5Logger():
         """
         if(time_ms is None):
             time_ms = self._time_ms()
-        start_dict = {"time_ms": self._time_ms(), "num_batches": num_batches, "batch_size": batch_size, "key": "run_stop"}
+        stop_dict = {"time_ms": self._time_ms(), "num_batches": num_batches, "batch_size": batch_size}
         if extra_metadata is not None:
-            start_dict["extra_metadata"] = extra_metadata
-        self._dump_json(start_dict)
+            stop_dict["extra_metadata"] = extra_metadata
+        self.log_line(stop_dict, constants.RUN_STOP)
 
+    def record_batch_info(self, num_batches = None, batch_size = None):
+        nbatches_dict = {"num_batches": num_batches}
+        batch_size_dict = {"batch_size": batch_size}
+        self.log_line(nbatches_dict, constants.BATCH_SIZE)
+        self.log_line(batch_size_dict, constants.NUM_BATCHES)

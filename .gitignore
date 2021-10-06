@@ -1,6 +1,10 @@
 # Data files
 .data
 
+# Results folders
+run_kaggle_pt/
+results/
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]

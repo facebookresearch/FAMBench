@@ -35,7 +35,7 @@ if __name__ == "__main__":
     subparsers.required = True
 
     parser_emb = subparsers.add_parser('emb', help='measure EmbeddingBag performance')
-    parser_emb.add_argument('-d', '--dataset', choices=['A', 'B', 'small'], default='A')
+    parser_emb.add_argument('-d', '--dataset', default='B')
     parser_emb.add_argument("--randomseed", type=int, default=0)
     parser_emb.add_argument("--usexlabag", action='store_true', help='use xlabad instead of embeddingbag')
     parser_emb.add_argument("--alpha", default=0.0, help="Zipf param. Use uniform if == 0.0")
@@ -43,7 +43,7 @@ if __name__ == "__main__":
     parser_linear = subparsers.add_parser('linear', help='measure mlp performance')
     parser_linear.add_argument('--optimizer-type', default='sgd', help='Optimizer: SGD', choices=['sgd'])
     parser_linear.add_argument('-t', '--dtype', default='float', help="data type", choices=["float", "float16", "bfloat16"])
-    parser_linear.add_argument('-d', '--dataset', choices=['A','small'], default='small')
+    parser_linear.add_argument('-d', '--dataset', default='small')
 
     # FB5 Logging
 
@@ -67,10 +67,13 @@ if __name__ == "__main__":
             run_dataset = dataset.emb_A
         elif args.dataset == 'B':
             run_dataset = dataset.emb_B
-        else:
+        elif args.dataset == 'small':
             small_dataset = [ (4800000, 56, 34, 2048),
                         (4800000, 56, 34, 4096),]
             run_dataset = small_dataset
+        else:
+            import ast
+            run_dataset = ast.literal_eval(args.dataset)
         for i in range(len(run_dataset)):
             features, embdim, nnz, batch = run_dataset[i]
             elap, total_bytes = kemb.run_single(args, features, embdim, nnz, batch)
@@ -89,10 +92,13 @@ if __name__ == "__main__":
             fb5logger.run_start()
         if args.dataset == 'A':
             run_dataset = dataset.mlp_A
-        else:
+        elif args.dataset == 'small':
             small_dataset = [ (18, 1024, 1024, 1024, 128),
                         (18, 1024, 1024, 1024, 256),]
             run_dataset = small_dataset
+        else:
+            import ast
+            run_dataset = ast.literal_eval(args.dataset)
         for i in range(len(run_dataset)):
             layer_num, input_size, hidden_size, output_size, batch_size = run_dataset[i]
             elap, loss = klinear.run_single(
