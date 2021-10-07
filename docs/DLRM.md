@@ -25,7 +25,7 @@ Create summary table and save to results/summary.txt
 python ../fb5logging/result_summarizer.py -f results 
 ```
 
-Run proxyworkloads/benchmarks/run_all.sh for a runnable example.
+See and/or run proxyworkloads/benchmarks/run_all.sh for a runnable example. Please note that to run it, your current dir must be at proxyworkloads/benchmarks.
 
 ### Additional DLRM Configurations
 You may choose to run your own model configuration. To do so, create a config file containing all flags for `dlrm_s_pytorch.py` on a single line. For example, create a file called `dlrm_tutorial` with contents:

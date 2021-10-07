@@ -18,4 +18,4 @@ Create summary table and save to results/summary.txt
 python ../fb5logging/result_summarizer.py -f results 
 ```
 
-See and/or run proxyworkloads/benchmarks/run_all.sh for a runnable example.
+See and/or run proxyworkloads/benchmarks/run_all.sh for a runnable example. Please note that to run it, your current dir must be at proxyworkloads/benchmarks.
