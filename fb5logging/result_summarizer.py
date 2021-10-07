@@ -12,7 +12,7 @@ import loggerconstants as constants
 
 ## Metrics
 
-def get_qps_metric(log_str : str):
+def get_exps_metric(log_str : str):
     """
     Given log file in form of loaded in-memory string, calculate
     queries/second
@@ -28,10 +28,13 @@ def get_qps_metric(log_str : str):
     num_batches, batch_size = run_stop_row['num_batches'], run_stop_row['batch_size']
 
     # calculate throughput, which is score
-    throughput = num_batches * batch_size / seconds_runtime # TODO if these divisons are by 0 catch exception
+    if(seconds_runtime == 0):
+        throughput = 'error: runtime is zero'
+    else:
+        throughput = num_batches * batch_size / seconds_runtime 
     average_batch_time = seconds_runtime / num_batches
 
-    metrics_dict = {'score': throughput, 'units': "ex/sec"}
+    metrics_dict = {'score': throughput, 'units': "ex/s"}
     return metrics_dict
 
 def get_tfps_metric(log_str):
@@ -77,8 +80,8 @@ def _calculate_metrics(log_str : str, score_metric : str):
     """
     
     # route to correct score_metric, which gets score and units
-    if(score_metric == constants.QPS):
-        metrics_dict = get_qps_metric(log_str)
+    if(score_metric == constants.EXPS):
+        metrics_dict = get_exps_metric(log_str)
     elif(score_metric == constants.TFPS):
         metrics_dict = get_tfps_metric(log_str)
     elif(score_metric == constants.GBPS):

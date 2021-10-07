@@ -25,6 +25,6 @@ INTERMEDIATE_VIEW = "intermediate_view" # table view
 RAW_VIEW = "raw_view" # json view
 
 # available types of score metrics
-QPS = "qps" # queries/sec (throughput)
+EXPS = "exps" # examples/sec (throughput)
 TFPS = "tfps" # teraflops/sec (floating point ops rate)
 GBPS = "gbps" # gb/sec 

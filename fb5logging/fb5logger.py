@@ -34,7 +34,7 @@ class FB5Logger():
         log_info['key'] = key
         self._dump_json(log_info)
 
-    def header(self, benchmark_name, implementation_name, mode, config_name, score_metric=constants.QPS):
+    def header(self, benchmark_name, implementation_name, mode, config_name, score_metric=constants.EXPS):
         """
         Required for every log. Describes what the benchmark is. 
         """

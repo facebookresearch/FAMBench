@@ -1039,9 +1039,9 @@ def run():
     if args.fb5logger is not None:
         fb5logger = FB5Logger(args.fb5logger)
         if args.inference_only:
-            fb5logger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.QPS)
+            fb5logger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.EXPS)
         else:
-            fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.QPS)
+            fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
 
     if args.weighted_pooling is not None:
         if args.qr_flag:
