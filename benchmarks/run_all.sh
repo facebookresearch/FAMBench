@@ -1,5 +1,8 @@
 #!/bin/bash
 
+# Ideally this would be a script to run, log, and summarize all relevant benchmarks, 
+# but at the moment it is more of an example. 
+
 # DLRM OOTB
 ./run_dlrm_ootb_infer.sh -l results
 ./run_dlrm_ootb_train.sh -l results # ootb configs use config files. See docs/DLRM.md
