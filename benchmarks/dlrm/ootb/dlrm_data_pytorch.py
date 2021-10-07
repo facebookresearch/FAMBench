@@ -686,7 +686,10 @@ class RandomDataset(Dataset):
             )
 
         # generate a batch of target (probability of a click)
-        T = generate_random_output_batch(n, self.num_targets, self.round_targets)
+        if 'cache_key' in locals():
+            T = generate_random_output_batch(n, self.num_targets, self.round_targets, cache_key)
+        else:
+            T = generate_random_output_batch(n, self.num_targets, self.round_targets).__wrapped__
 
         return (X, lS_o, lS_i, T)
 
@@ -855,8 +858,8 @@ def generate_random_data(
 
     return (nbatches, lX, lS_offsets, lS_indices, lT)
 
-
-def generate_random_output_batch(n, num_targets, round_targets=False):
+@functools.lru_cache(maxsize=16)
+def generate_random_output_batch(n, num_targets, round_targets=False, cache_key=None):
     # target (probability of a click)
     if round_targets:
         P = np.round(ra.rand(n, num_targets).astype(np.float32)).astype(np.float32)
