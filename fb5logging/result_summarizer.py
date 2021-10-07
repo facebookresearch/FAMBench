@@ -10,6 +10,50 @@ import sys
 import glob
 import loggerconstants as constants
 
+## Metrics
+
+def get_qps_metric(log_str : str):
+    """
+    Given log file in form of loaded in-memory string, calculate
+    queries/second
+    """
+    run_start_row = _find_and_read_row(log_str, constants.RUN_START)
+    run_stop_row = _find_and_read_row(log_str, constants.RUN_STOP)
+
+    # calculate runtime
+    run_start_time = float(run_start_row['time_ms'])
+    run_stop_time = float(run_stop_row['time_ms'])
+    seconds_runtime = (run_stop_time - run_start_time) / 1000
+
+    num_batches, batch_size = run_stop_row['num_batches'], run_stop_row['batch_size']
+
+    # calculate throughput, which is score
+    throughput = num_batches * batch_size / seconds_runtime # TODO if these divisons are by 0 catch exception
+    average_batch_time = seconds_runtime / num_batches
+
+    metrics_dict = {'score': throughput, 'units': "ex/sec"}
+    return metrics_dict
+
+def get_tfps_metric(log_str):
+    """
+    Given log file in form of loaded in-memory string, calculate
+    teraflops/second 
+    """
+    run_stop_row = _find_and_read_row(log_str, constants.RUN_STOP)
+    tfps = run_stop_row['extra_metadata']['TF/s']
+    metrics_dict = {'score': tfps, 'units': "TF/s"}
+    return metrics_dict
+
+def get_gbps_metric(log_str):
+    """
+    Given log file in form of loaded in-memory string, calculate
+    teraflops/second 
+    """
+    run_stop_row = _find_and_read_row(log_str, constants.RUN_STOP)
+    gbps = run_stop_row['extra_metadata']['GB/s']
+    metrics_dict = {'score': gbps, 'units': "GB/s"}
+    return metrics_dict
+
 def _find_and_read_row(result : str, key : str):
     """
     Finds a single row in a log file string and converts it into a dict.
@@ -22,7 +66,7 @@ def _find_and_read_row(result : str, key : str):
     row.pop('key')
     return row
 
-def _calculate_metrics(result : str):
+def _calculate_metrics(log_str : str, score_metric : str):
     """
     Calculates results dictionary with the following keys:
       score = examples / sec
@@ -31,24 +75,17 @@ def _calculate_metrics(result : str):
       average_batch_time = seconds / batch 
       extra_metadata = any extra information - may be used for future summary info
     """
-    run_start_row = _find_and_read_row(result, constants.RUN_START)
-    run_stop_row = _find_and_read_row(result, constants.RUN_STOP)
-    num_batches, batch_size = run_stop_row['num_batches'], run_stop_row['batch_size']
-
-    # calculate runtime
-    run_start_time = float(run_start_row['time_ms'])
-    run_stop_time = float(run_stop_row['time_ms'])
-    seconds_runtime = (run_stop_time - run_start_time) / 1000
-
-    # calculate throughput, which is score
-    throughput = num_batches * batch_size / seconds_runtime # TODO if these divisons are by 0 catch exception
-    average_batch_time = seconds_runtime / num_batches
-    result = {'score' : throughput, 'num_batches' : num_batches, 'batch_size' : batch_size, 'average_batch_time': average_batch_time}
-
-    #append extra_metadata if present
-    if 'extra_metadata' in run_stop_row:
-        result['extra_metadata'] = run_stop_row['extra_metadata']
-    return result
+    
+    # route to correct score_metric, which gets score and units
+    if(score_metric == constants.QPS):
+        metrics_dict = get_qps_metric(log_str)
+    elif(score_metric == constants.TFPS):
+        metrics_dict = get_tfps_metric(log_str)
+    elif(score_metric == constants.GBPS):
+        metrics_dict = get_gbps_metric(log_str)
+    else:
+        raise Exception("Score metric not available - should never get here")
+    return metrics_dict
 
 def _flatten_dict(d: dict):
     """
@@ -68,11 +105,12 @@ def _create_summary_row(file_path : str):
     Return JSON row.
     """
     with open(file_path, 'r') as f:
-        result = f.read()
+        log_file_str = f.read()
+    header = _find_and_read_row(log_file_str, constants.HEADER) 
+    metrics = _calculate_metrics(log_file_str, header['score_metric'])
 
-    row = _find_and_read_row(result, constants.HEADER)
-    results = _calculate_metrics(result)
-    row['results'] = results
+    row = header
+    row['metrics'] = metrics
     return row
 
 def _dump_json(d: dict, file_path: str):
@@ -103,7 +141,8 @@ def _rows_to_file(rows: list[dict], folder_path: str, summary_view=constants.INT
             "implementation",
             "mode",
             "config",
-            "score"]
+            "score",
+            "units"]
         _lst_to_file(top_level_keys, file_path)
         for row in rows:
             flattened_row = _flatten_dict(row)

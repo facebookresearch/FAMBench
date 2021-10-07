@@ -34,11 +34,16 @@ class FB5Logger():
         log_info['key'] = key
         self._dump_json(log_info)
 
-    def header(self, benchmark_name, implementation_name, mode, config_name):
+    def header(self, benchmark_name, implementation_name, mode, config_name, score_metric=constants.QPS):
         """
         Required for every log. Describes what the benchmark is. 
         """
-        header_dict = {"benchmark": benchmark_name, "implementation": implementation_name, "mode": mode, "config": config_name}
+        header_dict = {
+            "benchmark": benchmark_name, 
+            "implementation": implementation_name, 
+            "mode": mode, 
+            "config": config_name,
+            "score_metric": score_metric}
         self.log_line(header_dict, constants.HEADER)
 
     def run_start(self, time_ms = None):

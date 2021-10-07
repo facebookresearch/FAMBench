@@ -103,6 +103,7 @@ from os import fspath
 p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
 from fb5logger import FB5Logger
+import loggerconstants
 
 with warnings.catch_warnings():
     warnings.filterwarnings("ignore", category=DeprecationWarning)
@@ -1038,9 +1039,9 @@ def run():
     if args.fb5logger is not None:
         fb5logger = FB5Logger(args.fb5logger)
         if args.inference_only:
-            fb5logger.header("DLRM", "OOTB", "eval", args.fb5config)
+            fb5logger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.QPS)
         else:
-            fb5logger.header("DLRM", "OOTB", "train", args.fb5config)
+            fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.QPS)
 
     if args.weighted_pooling is not None:
         if args.qr_flag:
