@@ -18,6 +18,7 @@ import pytorch_linear as klinear
 p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
 from fb5logger import FB5Logger
+import loggerconstants
 
 if __name__ == "__main__":
 
@@ -55,13 +56,13 @@ if __name__ == "__main__":
     #fb5 logging header
     if args.fb5logger is not None:
         fb5logger = FB5Logger(args.fb5logger)
-        fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset)
 
     if args.kernel == 'emb':
         print("with emb dataset ", args.dataset)
         global_bytes = 0
         global_elap = 0
         if args.fb5logger is not None:
+            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.GBPS)
             fb5logger.run_start()
         if args.dataset == 'A':
             run_dataset = dataset.emb_A
@@ -89,6 +90,7 @@ if __name__ == "__main__":
         global_flops = 0
         global_elap = 0
         if args.fb5logger is not None:
+            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
             fb5logger.run_start()
         if args.dataset == 'A':
             run_dataset = dataset.mlp_A
