@@ -425,9 +425,9 @@ class DLRM_Net(nn.Module):
                 per_sample_weights = None
 
             if self.quantize_emb:
-                s1 = self.emb_l_q[k].element_size() * self.emb_l_q[k].nelement()
-                s2 = self.emb_l_q[k].element_size() * self.emb_l_q[k].nelement()
-                print("quantized emb sizes:", s1, s2)
+                # s1 = self.emb_l_q[k].element_size() * self.emb_l_q[k].nelement()
+                # s2 = self.emb_l_q[k].element_size() * self.emb_l_q[k].nelement()
+                # print("quantized emb sizes:", s1, s2)
 
                 if self.quantize_bits == 4:
                     QV = ops.quantized.embedding_bag_4bit_rowwise_offsets(
@@ -1015,6 +1015,8 @@ def run():
     parser.add_argument("--lr-num-warmup-steps", type=int, default=0)
     parser.add_argument("--lr-decay-start-step", type=int, default=0)
     parser.add_argument("--lr-num-decay-steps", type=int, default=0)
+    # Precache Training Data
+    parser.add_argument("--precache-training-data", action="store_true", default=False)
     # FB5 Logging
     parser.add_argument("--fb5logger", type=str, default=None)
     parser.add_argument("--fb5config", type=str, default="tiny")
@@ -1130,7 +1132,9 @@ def run():
         # input and target at random
         ln_emb = np.fromstring(args.arch_embedding_size, dtype=int, sep="-")
         m_den = ln_bot[0]
-        train_data, train_ld, test_data, test_ld = dp.make_random_data_and_loader(args, ln_emb, m_den)
+        train_data, train_ld, test_data, test_ld = dp.make_random_data_and_loader(
+            args, ln_emb, m_den, cache_size=min(10,args.num_batches) if args.precache_training_data else None
+        )
         nbatches = args.num_batches if args.num_batches > 0 else len(train_ld)
         nbatches_test = len(test_ld)
 
@@ -1504,6 +1508,12 @@ def run():
     writer = SummaryWriter(tb_file)
 
     ext_dist.barrier()
+
+    # Pre-cache training samples.
+    if args.precache_training_data:
+        for j, inputBatch in enumerate(train_ld):
+            pass
+
     with torch.autograd.profiler.profile(
         args.enable_profiling, use_cuda=use_gpu, record_shapes=True
     ) as prof:
