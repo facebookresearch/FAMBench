@@ -21,6 +21,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 # others
 from os import path
 import sys
+import functools
 import bisect
 import collections
 
@@ -595,7 +596,8 @@ class RandomDataset(Dataset):
             rand_data_max=1,
             rand_data_mu=-1,
             rand_data_sigma=1,
-            rand_seed=0
+            rand_seed=0,
+            cache_size=None,
     ):
         # compute batch size
         nbatches = int(np.ceil((data_size * 1.0) / mini_batch_size))
@@ -624,6 +626,7 @@ class RandomDataset(Dataset):
         self.rand_data_max = rand_data_max
         self.rand_data_mu = rand_data_mu
         self.rand_data_sigma = rand_data_sigma
+        self.cache_size = cache_size
 
     def reset_numpy_seed(self, numpy_rand_seed):
         np.random.seed(numpy_rand_seed)
@@ -648,9 +651,15 @@ class RandomDataset(Dataset):
 
         # generate a batch of dense and sparse features
         if self.data_generation == "random":
-            (X, lS_o, lS_i) = generate_dist_input_batch(
+            if self.cache_size == None:
+                Gen = generate_dist_input_batch.__wrapped__
+                cache_key = None
+            else:
+                Gen = generate_dist_input_batch
+                cache_key = index % self.cache_size
+            (X, lS_o, lS_i) = Gen(
                 self.m_den,
-                self.ln_emb,
+                tuple(self.ln_emb.tolist()),
                 n,
                 self.num_indices_per_lookup,
                 self.num_indices_per_lookup_fixed,
@@ -659,6 +668,7 @@ class RandomDataset(Dataset):
                 rand_data_max=self.rand_data_max,
                 rand_data_mu=self.rand_data_mu,
                 rand_data_sigma=self.rand_data_sigma,
+                cache_key=cache_key,
             )
         elif self.data_generation == "synthetic":
             (X, lS_o, lS_i) = generate_synthetic_input_batch(
@@ -676,7 +686,10 @@ class RandomDataset(Dataset):
             )
 
         # generate a batch of target (probability of a click)
-        T = generate_random_output_batch(n, self.num_targets, self.round_targets)
+        if 'cache_key' in locals():
+            T = generate_random_output_batch(n, self.num_targets, self.round_targets, cache_key)
+        else:
+            T = generate_random_output_batch(n, self.num_targets, self.round_targets).__wrapped__
 
         return (X, lS_o, lS_i, T)
 
@@ -705,7 +718,7 @@ def collate_wrapper_random_length(list_of_tuples):
 
 
 def make_random_data_and_loader(args, ln_emb, m_den,
-    offset_to_length_converter=False,
+    offset_to_length_converter=False, cache_size=None,
 ):
 
     train_data = RandomDataset(
@@ -727,7 +740,8 @@ def make_random_data_and_loader(args, ln_emb, m_den,
         rand_data_max=args.rand_data_max,
         rand_data_mu=args.rand_data_mu,
         rand_data_sigma=args.rand_data_sigma,
-        rand_seed=args.numpy_rand_seed
+        rand_seed=args.numpy_rand_seed,
+        cache_size=cache_size,
     )  # WARNING: generates a batch of lookups at once
 
     test_data = RandomDataset(
@@ -844,8 +858,8 @@ def generate_random_data(
 
     return (nbatches, lX, lS_offsets, lS_indices, lT)
 
-
-def generate_random_output_batch(n, num_targets, round_targets=False):
+@functools.lru_cache(maxsize=16)
+def generate_random_output_batch(n, num_targets, round_targets=False, cache_key=None):
     # target (probability of a click)
     if round_targets:
         P = np.round(ra.rand(n, num_targets).astype(np.float32)).astype(np.float32)
@@ -906,6 +920,7 @@ def generate_uniform_input_batch(
 
 
 # random data from uniform or gaussian ditribution (input data)
+@functools.lru_cache(maxsize=16)
 def generate_dist_input_batch(
     m_den,
     ln_emb,
@@ -917,6 +932,7 @@ def generate_dist_input_batch(
     rand_data_max,
     rand_data_mu,
     rand_data_sigma,
+    cache_key = None,
 ):
     # dense feature
     Xt = torch.tensor(ra.rand(n, m_den).astype(np.float32))

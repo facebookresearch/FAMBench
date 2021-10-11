@@ -6,31 +6,28 @@ Copyright (c) Facebook, Inc. and its affiliates.
 Deep Learning Recommendation Model (DLRM) supports various flags to control the model characteristics and execution sizes. This document introduces a bash script to toggle between the configurations used for benchmarking.
 
 ## Getting Started with DLRM
-Navigate to the DLRM benchmark script from the top level of the repo.
+Here is an example initial run. Run the following commands in terminal.
+
+Starting from the top level of the repo,
 ```
 cd benchmarks
 ```
+Now we are at proxyworkloads/benchmarks
 
-Run the`run_dlrm_ootb_train.sh` script saving the log files to `results`. By default, this script will run a tiny config. Please make sure the default config is working before proceeding to more complex configs (see Additional Configurations).
+Run one of the DLRM benchmarks. This script will log to the 
+directory using the -l flag. Here, log to results/.
 ```
-# This script will save the results to any directory using
-# the -l flag. For this example, we use results/.
 ./run_dlrm_ootb_train.sh -l results
 ```
 
-Now a log file, `dlrm_ootb_train_tiny.log` will live in `benchmarks/results`. From our current directory, `benchmarks`, run `result_summarizer.py` from the command line.
+Create summary table and save to results/summary.txt
 ```
-python ../fb5logging/result_summarizer.py -f results
-```
-
-The `result_summarizer` will print the summary results to the terminal, which should look like below (with different numbers). Most of the items are self-explanatory, except for the “score” key. Currently this is calculated as examples / second, but our final top-level score metric is subject to change.
-```
-$ python ../fb5logging/result_summarizer.py -f results/
-Summarizing files: ['results/dlrm_ootb_train_tiny.log']
-{'benchmark': 'DLRM', 'implementation': 'OOTB', 'mode': 'train', 'config': 'tiny', 'results': {'score': 930.435414697972, 'num_batches': 200, 'batch_size': 64, 'average_batch_time': 0.068785}}
+python ../fb5logging/result_summarizer.py -f results 
 ```
 
-### Additional Configurations
+See and/or run proxyworkloads/benchmarks/run_all.sh for a runnable example. Please note that to run it, your current dir must be at proxyworkloads/benchmarks.
+
+### Additional DLRM Configurations
 You may choose to run your own model configuration. To do so, create a config file containing all flags for `dlrm_s_pytorch.py` on a single line. For example, create a file called `dlrm_tutorial` with contents:
 
 ```
