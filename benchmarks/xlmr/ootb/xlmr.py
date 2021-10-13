@@ -12,10 +12,10 @@ from fb5logger import FB5Logger
 from torchtext.datasets import PennTreebank
 
 def get_inference_model():
-    fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.base') # TODO change to xlmr.large
+    fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large') 
     fairseq_xlmr_large.eval()
     # TODO use torchscript? jit/script this model?
-    return fairseq_xlmr_large.model # TODO is this right? Send back model attribute?
+    return fairseq_xlmr_large.model 
 
 def get_inference_data():
     test_dp = PennTreebank(split='test')
@@ -23,7 +23,7 @@ def get_inference_data():
 
     return test_dp
 
-def generate_inference_data(nbatches=1, batchsize=32, seq_length=100, vocab_size=1000):
+def generate_inference_data(nbatches=10, batchsize=32, seq_length=64, vocab_size=1000):
     shape = (nbatches, batchsize, seq_length)
     data = torch.rand(shape) * vocab_size
     data = data.int()
@@ -70,28 +70,32 @@ def run():
     parser = init_argparse()
     args = parser.parse_args()
 
+    # prep logger
     if args.fb5logger is not None:
         fb5logger = FB5Logger(args.fb5logger)
-        if args.inference_only:
+        if(args.inference_only): 
             fb5logger.header("XLMR", "OOTB", "eval", args.fb5config)
         else:
             fb5logger.header("XLMR", "OOTB", "train", args.fb5config)
             
+    # prep model and data
+    xlmr = None
+    data = None
+    if(args.inference_only): 
+        data = generate_inference_data()
+        xlmr = get_inference_model()
+    else:
+        pass # TODO train side
+
+    # benchmark! 
     if args.fb5logger is not None:
         fb5logger.run_start()
 
-    if(not args.inference_only): 
-        pass # TODO train side
-    else:
-        # TODO get dataset and deal with all different nlp applications
-        data = generate_inference_data()
-        xlmr = get_inference_model()
-        evaluate_simple(xlmr, data) 
+    evaluate_simple(xlmr, data) 
 
-    nbatches = 1
-    batch_size = 32
+    nbatches, batch_size = data.shape[0], data.shape[1]
     if args.fb5logger is not None:
-        fb5logger.run_stop(nbatches, batch_size)
+        fb5logger.run_stop(nbatches, batch_size)    
 
 if __name__ == "__main__":
     run()
