@@ -21,7 +21,8 @@ FLOPS = "flops"
 LEARNING_RATE = "learning_rate"
 
 # type of summary view saved to file
-INTERMEDIATE_VIEW = "intermediate_view" # table view
+INTERMEDIATE_VIEW_MAXTHROUGHPUT = "intermediate_view_maxthroughput" # table view where duplicates prune down to max throughput within batch latency requirement
+INTERMEDIATE_VIEW = "intermediate_view" # table view with duplicates
 RAW_VIEW = "raw_view" # json view
 
 # available types of score metrics

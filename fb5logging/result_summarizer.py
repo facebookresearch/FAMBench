@@ -128,6 +128,25 @@ def _lst_to_file(lst: list, file_path: str):
     with open(file_path, 'a') as f:
         f.write(delimiter.join(lst) + '\n')
 
+def _extract_header(row: dict):
+    header_tuple = (row['benchmark'], row['implementation'], row['mode'], row['config'])
+    return header_tuple
+
+def _prune_row_duplicates_maxscore(rows: list):
+    """
+    If there are duplicate rows, only return the row with the max score.
+    Assumes the header keys are at the top level of each row dict.
+    rows: list[dict]
+    """
+    header_dict = {} # keeps track of max row
+    pruned_rows = []
+    for row in rows:
+        header_tuple = _extract_header
+        if(header_tuple in header_dict):
+        else:
+            header_dict[header_tuple] = (row['score'], len(pruned_rows)-1)
+
+
 def _rows_to_file(rows: list, folder_path: str, summary_view=constants.INTERMEDIATE_VIEW):
     """
     Save list of summary rows into a human-readable table in a file.
