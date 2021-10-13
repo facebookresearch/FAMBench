@@ -57,6 +57,8 @@ def get_gbps_metric(log_str):
     metrics_dict = {'score': gbps, 'units': "GB/s"}
     return metrics_dict
 
+## Read and process log files 
+
 def _find_and_read_row(result : str, key : str):
     """
     Finds a single row in a log file string and converts it into a dict.
@@ -71,12 +73,8 @@ def _find_and_read_row(result : str, key : str):
 
 def _calculate_metrics(log_str : str, score_metric : str):
     """
-    Calculates results dictionary with the following keys:
-      score = examples / sec
-      num_batches = number of batches
-      batch_size = number of examples per batch
-      average_batch_time = seconds / batch 
-      extra_metadata = any extra information - may be used for future summary info
+    Calculates metrics. Routes to different metrics functions based on the score_metric type. 
+    Allowed score metrics live in loggerconstants.py
     """
     
     # route to correct score_metric, which gets score and units
@@ -89,6 +87,17 @@ def _calculate_metrics(log_str : str, score_metric : str):
     else:
         raise Exception("Score metric not available - should never get here")
     return metrics_dict
+
+def _calculate_batch_latency(log_str : str, percentile : float):
+    """
+    Calculates batch latency at a given percentile in range [0, 1]. 
+    """
+    # use find and read row but need a notion of order? 
+    # find all rows with key constants.BATCH_START and BATCH_STOP
+    # then loop through and find times. order them. 
+    # then take the nth one based on the percentile. return that. 
+    pass
+
 
 def _flatten_dict(d: dict):
     """
