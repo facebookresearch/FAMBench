@@ -651,7 +651,7 @@ class RandomDataset(Dataset):
 
         # generate a batch of dense and sparse features
         if self.data_generation == "random":
-            if self.cache_size == None:
+            if self.cache_size is None:
                 Gen = generate_dist_input_batch.__wrapped__
                 cache_key = None
             else:
@@ -686,10 +686,10 @@ class RandomDataset(Dataset):
             )
 
         # generate a batch of target (probability of a click)
-        if 'cache_key' in locals():
+        if 'cache_key' in locals() and cache_key is not None:
             T = generate_random_output_batch(n, self.num_targets, self.round_targets, cache_key)
         else:
-            T = generate_random_output_batch(n, self.num_targets, self.round_targets).__wrapped__
+            T = generate_random_output_batch.__wrapped__(n, self.num_targets, self.round_targets)
 
         return (X, lS_o, lS_i, T)
 
@@ -859,7 +859,8 @@ def generate_random_data(
 
     return (nbatches, lX, lS_offsets, lS_indices, lT)
 
-@functools.lru_cache(maxsize=16)
+
+@functools.lru_cache(maxsize=None)
 def generate_random_output_batch(n, num_targets, round_targets=False, cache_key=None):
     # target (probability of a click)
     if round_targets:
@@ -921,7 +922,7 @@ def generate_uniform_input_batch(
 
 
 # random data from uniform or gaussian ditribution (input data)
-@functools.lru_cache(maxsize=16)
+@functools.lru_cache(maxsize=None)
 def generate_dist_input_batch(
     m_den,
     ln_emb,

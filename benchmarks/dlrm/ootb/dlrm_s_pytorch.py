@@ -114,7 +114,6 @@ try:
         SplitTableBatchedEmbeddingBagsCodegen,
         IntNBitTableBatchedEmbeddingBagsCodegen,
     )
-
 except (ImportError, OSError):
     fbgemm_gpu_import_error_msg = traceback.format_exc()
     fbgemm_gpu = None
@@ -729,13 +728,14 @@ class DLRM_Net(nn.Module):
                 sys.exit(
                     "ERROR: --loss-function=" + self.loss_function + " is not supported"
                 )
+
     # nn_module_wrapper is used to call functions concurrently across multi-gpus, using parallel_apply,
     # which requires an nn.Module subclass.
     class nn_module_wrapper(nn.Module):
         def __init__(self):
             super(DLRM_Net.nn_module_wrapper, self).__init__()
         def forward(self, E, x, ly):
-            return E(x,ly)
+            return E(x, ly)
 
     def apply_mlp(self, x, layers):
         # approach 1: use ModuleList
@@ -1416,8 +1416,8 @@ def run():
     parser.add_argument("--lr-num-warmup-steps", type=int, default=0)
     parser.add_argument("--lr-decay-start-step", type=int, default=0)
     parser.add_argument("--lr-num-decay-steps", type=int, default=0)
-    # Precache Training Data
-    parser.add_argument("--precache-training-data", action="store_true", default=False)
+
+    parser.add_argument("--precache-ml-data", type=int, nargs='?', default=None, const=sys.maxsize)
     # FB5 Logging
     parser.add_argument("--fb5logger", type=str, default=None)
     parser.add_argument("--fb5config", type=str, default="tiny")
@@ -1568,7 +1568,7 @@ def run():
         ln_emb = np.fromstring(args.arch_embedding_size, dtype=int, sep="-")
         m_den = ln_bot[0]
         train_data, train_ld, test_data, test_ld = dp.make_random_data_and_loader(
-            args, ln_emb, m_den, cache_size=min(10,args.num_batches) if args.precache_training_data else None
+            args, ln_emb, m_den, cache_size=args.precache_ml_data
         )
         nbatches = args.num_batches if args.num_batches > 0 else len(train_ld)
         nbatches_test = len(test_ld)
@@ -2004,8 +2004,8 @@ def run():
     writer = SummaryWriter(tb_file)
 
     # Pre-cache samples.
-    if args.precache_training_data:
-        for j, inputBatch in enumerate(test_ld if args.inference_only else train_ld):
+    if args.precache_ml_data:
+        for _ in (test_ld if args.inference_only else train_ld):
             pass
 
     ext_dist.barrier()
