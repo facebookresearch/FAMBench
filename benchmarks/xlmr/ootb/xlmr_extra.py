@@ -1,6 +1,7 @@
 """
 Hold functions for xlmr todos
 """
+from torchtext.datasets import PennTreebank
 
 def get_inference_data():
     test_dp = PennTreebank(split='test')

@@ -9,8 +9,6 @@ p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
 from fb5logger import FB5Logger
 
-from torchtext.datasets import PennTreebank
-
 def get_inference_model():
     fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large') 
     fairseq_xlmr_large.eval()
