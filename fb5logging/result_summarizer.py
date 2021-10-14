@@ -137,9 +137,10 @@ def _lst_to_file(lst: list, file_path: str):
     with open(file_path, 'a') as f:
         f.write(delimiter.join(lst) + '\n')
 
-def _rows_to_file(rows: list[dict], folder_path: str, summary_view=constants.INTERMEDIATE_VIEW):
+def _rows_to_file(rows: list, folder_path: str, summary_view=constants.INTERMEDIATE_VIEW):
     """
-    Save list of summary rows into a human-readable table in a file
+    Save list of summary rows into a human-readable table in a file.
+    rows: list[dict]
     """
     file_path = folder_path + '/summary.txt'
     if(len(rows) == 0):
@@ -166,9 +167,10 @@ def _rows_to_file(rows: list[dict], folder_path: str, summary_view=constants.INT
     else:
         print('Summary view of wrong type - should never get here.')
 
-def summarize_results(benchmark_folder) -> list[dict]:
+def summarize_results(benchmark_folder) -> list:
     """
     Summarizes a set of results.
+    returns: list[dict]
     """
     rows = []
     pattern = '{folder}/*.log'.format(folder=benchmark_folder) # TODO allow other kinds of files
