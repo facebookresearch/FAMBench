@@ -763,7 +763,8 @@ def make_random_data_and_loader(args, ln_emb, m_den,
         rand_data_max=args.rand_data_max,
         rand_data_mu=args.rand_data_mu,
         rand_data_sigma=args.rand_data_sigma,
-        rand_seed=args.numpy_rand_seed
+        rand_seed=args.numpy_rand_seed,
+        cache_size=cache_size,
     )
 
     collate_wrapper_random = collate_wrapper_random_offset

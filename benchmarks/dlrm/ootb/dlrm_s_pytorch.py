@@ -2003,9 +2003,9 @@ def run():
     tb_file = "./" + args.tensor_board_filename
     writer = SummaryWriter(tb_file)
 
-    # Pre-cache training samples.
+    # Pre-cache samples.
     if args.precache_training_data:
-        for j, inputBatch in enumerate(train_ld):
+        for j, inputBatch in enumerate(test_ld if args.inference_only else train_ld):
             pass
 
     ext_dist.barrier()
