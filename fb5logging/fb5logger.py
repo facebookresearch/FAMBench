@@ -5,6 +5,7 @@ import json
 import time
 import loggerconstants as constants
 
+# TODO: change name to FAMLogger
 class FB5Logger():
 
     def __init__(self, log_file_path):
@@ -55,6 +56,7 @@ class FB5Logger():
         start_dict = {"time_ms": time_ms}
         self.log_line(start_dict, constants.RUN_START)
 
+    # TODO: remove batch info args and migrate to record_batch_info
     def run_stop(self, num_batches, batch_size, extra_metadata = None, time_ms = None):
         """
         Records end of logging and any required data. 

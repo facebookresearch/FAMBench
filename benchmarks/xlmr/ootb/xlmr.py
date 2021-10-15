@@ -21,18 +21,20 @@ def generate_inference_data(nbatches=10, batchsize=32, seq_length=64, vocab_size
     data = data.int()
     return data
     
-def evaluate_simple(model, input_data):
+def evaluate_simple(model, input_data, famlogger=None):
     """
     Run data through the model
     """
     for batch in input_data:
+        famlogger.batch_start()
         output = model(batch)
+        famlogger.batch_stop()
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Benchmark XLM-R model"
     )
-    parser.add_argument("--fb5logger", type=str, default=None)
+    parser.add_argument("--logfile", type=str, default=None)
     parser.add_argument("--inference-only", action="store_true", default=False)
     parser.add_argument("--fb5config", type=str, default="tiny")
     return parser
@@ -42,31 +44,31 @@ def run():
     args = parser.parse_args()
 
     # prep logger
-    if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
+    if args.logfile is not None:
+        famlogger = FB5Logger(args.logfile)
         if(args.inference_only): 
-            fb5logger.header("XLMR", "OOTB", "eval", args.fb5config)
+            famlogger.header("XLMR", "OOTB", "eval", args.fb5config)
         else:
-            fb5logger.header("XLMR", "OOTB", "train", args.fb5config)
+            famlogger.header("XLMR", "OOTB", "train", args.fb5config)
             
     # prep model and data
     xlmr = None
     data = None
     if(args.inference_only): 
-        data = generate_inference_data()
+        data = generate_inference_data(nbatches=3)
         xlmr = get_inference_model()
     else:
         pass # TODO train side
 
     # benchmark! 
-    if args.fb5logger is not None:
-        fb5logger.run_start()
+    if args.logfile is not None:
+        famlogger.run_start()
 
-    evaluate_simple(xlmr, data) 
+    evaluate_simple(xlmr, data, famlogger=famlogger) 
 
-    nbatches, batch_size = data.shape[0], data.shape[1]
-    if args.fb5logger is not None:
-        fb5logger.run_stop(nbatches, batch_size)    
+    if args.logfile is not None:
+        famlogger.run_stop(1, 1)    
+        famlogger.record_batch_info(num_batches=data.shape[0], batch_size=data.shape[1])
 
 if __name__ == "__main__":
     run()

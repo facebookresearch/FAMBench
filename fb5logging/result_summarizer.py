@@ -10,6 +10,47 @@ import sys
 import glob
 import loggerconstants as constants
 
+class SummaryRow():
+    """
+    Keep track of all common attributes between all summary row and other data
+    """
+    def __init__():
+        top_level_keys = [
+            "benchmark",
+            "implementation",
+            "mode",
+            "config",
+            "score",
+            "units"]
+            
+    def 
+
+
+## Utility
+def _flatten_dict(d: dict):
+    """
+    Flattens a nested dictionary, not in-place
+    """
+    res = {}
+    for key, val in d.items():
+        if isinstance(val, dict):
+            res.update(_flatten_dict(val))
+        else:
+            res[key] = val
+    return res
+
+def _dump_json(d: dict, file_path: str):
+    with open(file_path, 'a') as f:
+        json.dump(d, f)
+        f.write('\n')
+
+def _lst_to_file(lst: list, file_path: str):
+    for i in range(len(lst)):
+        lst[i] = str(lst[i])
+    delimiter = ' ' #space delimiter
+    with open(file_path, 'a') as f:
+        f.write(delimiter.join(lst) + '\n')
+
 ## Metrics
 
 def get_exps_metric(log_str : str):
@@ -57,20 +98,6 @@ def get_gbps_metric(log_str):
     metrics_dict = {'score': gbps, 'units': "GB/s"}
     return metrics_dict
 
-## Read and process log files 
-
-def _find_and_read_row(result : str, key : str):
-    """
-    Finds a single row in a log file string and converts it into a dict.
-    """
-    regex = r'.*"key": "{}".*'.format(key)
-    row = re.search(regex, result)
-    if row is None:
-      raise Exception('Failed to match regex: '.format(regex))
-    row = json.loads(row.group(0))
-    row.pop('key')
-    return row
-
 def _calculate_metrics(log_str : str, score_metric : str):
     """
     Calculates metrics. Routes to different metrics functions based on the score_metric type. 
@@ -88,6 +115,8 @@ def _calculate_metrics(log_str : str, score_metric : str):
         raise Exception("Score metric not available - should never get here")
     return metrics_dict
 
+## Handle batches and batch latency 
+
 def _calculate_batch_latency(log_str : str, percentile : float):
     """
     Calculates batch latency at a given percentile in range [0, 1]. 
@@ -98,18 +127,19 @@ def _calculate_batch_latency(log_str : str, percentile : float):
     # then take the nth one based on the percentile. return that. 
     pass
 
+## Read and process log files 
 
-def _flatten_dict(d: dict):
+def _find_and_read_row(result : str, key : str):
     """
-    Flattens a nested dictionary, not in-place
+    Finds a single row in a log file string and converts it into a dict.
     """
-    res = {}
-    for key, val in d.items():
-        if isinstance(val, dict):
-            res.update(_flatten_dict(val))
-        else:
-            res[key] = val
-    return res
+    regex = r'.*"key": "{}".*'.format(key)
+    row = re.search(regex, result)
+    if row is None:
+      raise Exception('Failed to match regex: '.format(regex))
+    row = json.loads(row.group(0))
+    row.pop('key')
+    return row
 
 def _create_summary_row(file_path : str):
     """
@@ -124,18 +154,6 @@ def _create_summary_row(file_path : str):
     row = header
     row['metrics'] = metrics
     return row
-
-def _dump_json(d: dict, file_path: str):
-    with open(file_path, 'a') as f:
-        json.dump(d, f)
-        f.write('\n')
-
-def _lst_to_file(lst: list, file_path: str):
-    for i in range(len(lst)):
-        lst[i] = str(lst[i])
-    delimiter = ' ' #space delimiter
-    with open(file_path, 'a') as f:
-        f.write(delimiter.join(lst) + '\n')
 
 def _rows_to_file(rows: list, folder_path: str, summary_view=constants.INTERMEDIATE_VIEW):
     """
@@ -180,6 +198,8 @@ def summarize_results(benchmark_folder) -> list:
         row = _create_summary_row(file_path)
         rows.append(row)
     return rows
+
+## Parse and main
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
