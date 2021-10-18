@@ -11,27 +11,6 @@ import glob
 import math
 import loggerconstants as constants
 
-class SummaryRow():
-    """
-    Keep track of all common attributes between all summary row and other data
-    """
-    top_level_keys = [
-            "benchmark",
-            "implementation",
-            "mode",
-            "config",
-            "score",
-            "units"]
-    
-    def __init__():
-        summary_dict = {}
-            
-    def isComplete():
-        for key in top_level_keys:
-            if(key not in top_level_keys):
-                return False
-        return True
-
 ## Utility
 def _flatten_dict(d: dict):
     """
