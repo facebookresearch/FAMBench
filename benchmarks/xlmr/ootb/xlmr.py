@@ -54,7 +54,6 @@ def run():
 
     # check for device
     if(args.use_gpu):
-        print('using le gpu')
         assert torch.cuda.is_available(), "No cuda device is available."
         device = torch.device("cuda", 0)
 
