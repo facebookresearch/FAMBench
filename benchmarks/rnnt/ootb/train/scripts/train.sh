@@ -19,6 +19,8 @@ export OMP_NUM_THREADS=1
 : ${DATA_DIR:=${1:-"$DATASET_DIR/LibriSpeech"}}
 : ${MODEL_CONFIG:=${2:-"configs/baseline_v3-1023sp.yaml"}}
 : ${OUTPUT_DIR:=${3:-"$RESULT_DIR"}}
+: ${FB5LOGGER:=${4}}
+: ${FB5CONFIG:=${5}}
 : ${CHECKPOINT:-}
 : ${CUDNN_BENCHMARK:=true}
 : ${NUM_GPUS:=1}
@@ -82,6 +84,8 @@ ARGS+=" --dali_device=$DALI_DEVICE"
 ARGS+=" --beta1=$BETA1"
 ARGS+=" --beta2=$BETA2"
 
+[ -n "$FB5LOGGER" ] &&               ARGS+=" --fb5logger=$FB5LOGGER"
+[ -n "$FB5CONFIG" ] &&               ARGS+=" --fb5config=$FB5CONFIG"
 [ "$AMP" = true ] &&                 ARGS+=" --amp"
 [ "$RESUME" = true ] &&              ARGS+=" --resume"
 [ "$CUDNN_BENCHMARK" = true ] &&     ARGS+=" --cudnn_benchmark"
@@ -102,4 +106,5 @@ ARGS+=" --beta2=$BETA2"
 
 DISTRIBUTED=${DISTRIBUTED:-"-m torch.distributed.launch --nproc_per_node=$NUM_GPUS"}
 script_dir=`dirname "${BASH_SOURCE[0]}"`
+set -x
 python ${DISTRIBUTED} "$script_dir/../train.py" ${ARGS}

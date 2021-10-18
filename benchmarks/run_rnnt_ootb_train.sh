@@ -36,7 +36,9 @@ do
   esac
 done
 
-LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_${config}.log"
+# Resolve to absolute directory to support both relative and absolute dirs.
+ABSOLUTE_LOG_DIR=`readlink -f ${LOG_DIR}`
+LOGGER_FILE="${ABSOLUTE_LOG_DIR}/${benchmark}_${implementation}_${mode}_${config}.log"
 
 echo "=== Launching FB5 ==="
 echo "Benchmark: ${benchmark}"
@@ -47,11 +49,20 @@ echo "Saving FB5 Logger File: ${LOGGER_FILE}"
 echo
 echo "Running Command:"
 
+if [[ -z "$DATASET_DIR" ]]; then
+  echo "ERROR: DATASET_DIR not set!"
+  exit 1
+fi
+if [[ -z "$RESULT_DIR" ]]; then
+  echo "ERROR: RESULT_DIR not set!"
+  exit 1
+fi
+
 if [ "$is_config" = true ]; then
   config_flags=$(head -n 1 "${config}")
-  (set -x; python bash ${benchmark}/${implementation}/${mode}/scripts/train.sh $DATASET_DIR/LibriSpeech ${benchmark}/${implementation}/${mode}/configs/baseline_v3-1023sp.yaml $RESULT_DIR ${config_flags} --fb5logger=${LOGGER_FILE} --fb5config=${config} 2>&1)
+  (set -x; bash ${benchmark}/${implementation}/${mode}/scripts/train.sh ${DATASET_DIR}/LibriSpeech ${benchmark}/${implementation}/${mode}/configs/baseline_v3-1023sp.yaml ${RESULT_DIR} ${LOGGER_FILE} ${config} ${config_flags} 2>&1)
 else
-  (set -x; bash ${benchmark}/${implementation}/${mode}/scripts/train.sh $DATASET_DIR/LibriSpeech ${benchmark}/${implementation}/${mode}/configs/baseline_v3-1023sp.yaml $RESULT_DIR --fb5logger=${LOGGER_FILE} --fb5config=${config} 2>&1)
+  (set -x; bash ${benchmark}/${implementation}/${mode}/scripts/train.sh ${DATASET_DIR}/LibriSpeech ${benchmark}/${implementation}/${mode}/configs/baseline_v3-1023sp.yaml ${RESULT_DIR} ${LOGGER_FILE} ${config} 2>&1)
 fi
 
 echo "=== Completed Run ==="

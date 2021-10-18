@@ -64,7 +64,7 @@ class RNNT(nn.Module):
                  pred_n_hid, pred_rnn_layers, joint_n_hid,
                  forget_gate_bias,
                  hidden_hidden_bias_scale=0.0, weights_init_scale=1.0,
-                 enc_lr_factor=1.0, pred_lr_factor=1.0, joint_lr_factor=1.0):
+                 enc_lr_factor=1.0, pred_lr_factor=1.0, joint_lr_factor=1.0, mlperf=False):
         super(RNNT, self).__init__()
 
         self.enc_lr_factor = enc_lr_factor
@@ -86,7 +86,7 @@ class RNNT(nn.Module):
                                  weights_init_scale=weights_init_scale,
                                  dropout=enc_dropout,
                                  tensor_name='pre_rnn',
-                                )
+                                 )
 
         enc_mod["stack_time"] = StackTime(enc_stack_time_factor)
 
@@ -98,13 +98,14 @@ class RNNT(nn.Module):
                                   weights_init_scale=weights_init_scale,
                                   dropout=enc_dropout,
                                   tensor_name='post_rnn',
-                                )
+                                  )
 
         self.encoder = torch.nn.ModuleDict(enc_mod)
 
         pred_embed = torch.nn.Embedding(n_classes - 1, pred_n_hid)
-        logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
-                          metadata=dict(tensor='pred_embed'))
+        if mlperf:
+            logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
+                              metadata=dict(tensor='pred_embed'))
 
         self.prediction = torch.nn.ModuleDict({
             "embed": pred_embed,
@@ -123,20 +124,23 @@ class RNNT(nn.Module):
         self.joint_pred = torch.nn.Linear(
             pred_n_hid,
             joint_n_hid)
-        logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
-                          metadata=dict(tensor='joint_pred'))
+        if mlperf:
+            logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
+                              metadata=dict(tensor='joint_pred'))
         self.joint_enc = torch.nn.Linear(
             enc_n_hid,
             joint_n_hid)
-        logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
-                          metadata=dict(tensor='joint_enc'))
+        if mlperf:
+            logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
+                              metadata=dict(tensor='joint_enc'))
 
         self.joint_net = nn.Sequential(
             torch.nn.ReLU(inplace=True),
             torch.nn.Dropout(p=joint_dropout),
             torch.nn.Linear(joint_n_hid, n_classes))
-        logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
-                          metadata=dict(tensor='joint_net'))
+        if mlperf:
+            logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
+                              metadata=dict(tensor='joint_net'))
 
     def forward(self, x, x_lens, y, y_lens, state=None):
         # x: (B, channels, features, seq_len)
@@ -146,7 +150,6 @@ class RNNT(nn.Module):
 
         g, _ = self.predict(y, state)
         out = self.joint(f, g)
-
 
         return out, x_lens
 
@@ -202,9 +205,9 @@ class RNNT(nn.Module):
         else:
             start = None   # makes del call later easier
 
-        y = y.transpose(0, 1)#.contiguous()   # (U + 1, B, H)
+        y = y.transpose(0, 1)  # .contiguous()   # (U + 1, B, H)
         g, hid = self.prediction["dec_rnn"](y, state)
-        g = g.transpose(0, 1)#.contiguous()   # (B, U + 1, H)
+        g = g.transpose(0, 1)  # .contiguous()   # (B, U + 1, H)
         del y, start, state
         return g, hid
 
@@ -236,7 +239,7 @@ class RNNT(nn.Module):
                  'lr': lr * self.pred_lr_factor},
                 {'params': chain_params(self.joint_enc, self.joint_pred, self.joint_net),
                  'lr': lr * self.joint_lr_factor},
-               ]
+                ]
 
 
 def label_collate(labels):

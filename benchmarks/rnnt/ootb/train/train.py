@@ -17,6 +17,7 @@ import copy
 import os
 import random
 import time
+import sys
 
 import torch
 import numpy as np
@@ -40,6 +41,14 @@ from rnnt.loss import RNNTLoss
 from rnnt.model import RNNT
 
 from mlperf import logging
+
+# FB5 Logger
+import pathlib
+from os import fspath
+p = pathlib.Path(__file__).parent.resolve() / "../../../../fb5logging"
+sys.path.append(fspath(p))
+from fb5logger import FB5Logger
+import loggerconstants
 
 
 def parse_args():
@@ -133,6 +142,11 @@ def parse_args():
                     help='Path to save the training logfile.')
     io.add_argument('--max_symbol_per_sample', type=int, default=None,
                     help='maximum number of symbols per sample can have during eval')
+    io.add_argument('--mlperf', action='store_true', help='Enable MLPerf Logging.')
+
+    # FB5 Logging
+    io.add_argument("--fb5logger", type=str, default=None)
+    io.add_argument("--fb5config", type=str, default="small")
     return parser.parse_args()
 
 
@@ -147,13 +161,14 @@ def apply_ema(model, ema_model, decay):
 
 @torch.no_grad()
 def evaluate(epoch, step, val_loader, val_feat_proc, detokenize,
-             ema_model, loss_fn, greedy_decoder, use_amp):
+             ema_model, loss_fn, greedy_decoder, use_amp, args):
 
     ema_model.eval()
 
     start_time = time.time()
     agg = {'losses': [], 'preds': [], 'txts': [], 'idx': []}
-    logging.log_start(logging.constants.EVAL_START, metadata=dict(epoch_num=epoch))
+    if args.mlperf:
+        logging.log_start(logging.constants.EVAL_START, metadata=dict(epoch_num=epoch))
     for i, batch in enumerate(val_loader):
         print(f'{val_loader.pipeline_type} evaluation: {i:>10}/{len(val_loader):<10}', end='\r')
 
@@ -163,7 +178,7 @@ def evaluate(epoch, step, val_loader, val_feat_proc, detokenize,
 
         log_probs, log_prob_lens = ema_model(feats, feat_lens, txt, txt_lens)
         loss = loss_fn(log_probs[:, :log_prob_lens.max().item()],
-                                  log_prob_lens, txt, txt_lens)
+                       log_prob_lens, txt, txt_lens)
 
         pred = greedy_decoder.decode(ema_model, feats, feat_lens)
 
@@ -172,9 +187,9 @@ def evaluate(epoch, step, val_loader, val_feat_proc, detokenize,
         agg['txts'] += helpers.gather_transcripts([txt.cpu()], [txt_lens.cpu()], detokenize)
 
     wer, loss = process_evaluation_epoch(agg)
-
-    logging.log_event(logging.constants.EVAL_ACCURACY, value=wer, metadata=dict(epoch_num=epoch))
-    logging.log_end(logging.constants.EVAL_STOP, metadata=dict(epoch_num=epoch))
+    if args.mlperf:
+        logging.log_event(logging.constants.EVAL_ACCURACY, value=wer, metadata=dict(epoch_num=epoch))
+        logging.log_end(logging.constants.EVAL_STOP, metadata=dict(epoch_num=epoch))
 
     log((epoch,), step, 'dev_ema', {'loss': loss, 'wer': 100.0 * wer, 'took': time.time() - start_time})
     ema_model.train()
@@ -182,10 +197,16 @@ def evaluate(epoch, step, val_loader, val_feat_proc, detokenize,
 
 
 def main():
-    logging.configure_logger('RNNT')
-    logging.log_start(logging.constants.INIT_START)
 
     args = parse_args()
+
+    if args.mlperf:
+        logging.configure_logger('RNNT')
+        logging.log_start(logging.constants.INIT_START)
+
+    if args.fb5logger is not None:
+        fb5logger = FB5Logger(args.fb5logger)
+        fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
 
     assert(torch.cuda.is_available())
     assert args.prediction_frequency is None or args.prediction_frequency % args.log_frequency == 0
@@ -203,7 +224,8 @@ def main():
         world_size = 1
 
     if args.seed is not None:
-        logging.log_event(logging.constants.SEED, value=args.seed)
+        if args.mlperf:
+            logging.log_event(logging.constants.SEED, value=args.seed)
         torch.manual_seed(args.seed + args.local_rank)
         np.random.seed(args.seed + args.local_rank)
         random.seed(args.seed + args.local_rank)
@@ -216,20 +238,23 @@ def main():
     config.apply_duration_flags(cfg, args.max_duration)
 
     assert args.grad_accumulation_steps >= 1
-    assert args.batch_size % args.grad_accumulation_steps == 0, f'{args.batch_size} % {args.grad_accumulation_steps} != 0'
-    logging.log_event(logging.constants.GRADIENT_ACCUMULATION_STEPS, value=args.grad_accumulation_steps)
+    assert args.batch_size % args.grad_accumulation_steps == 0, \
+        f'{args.batch_size} % {args.grad_accumulation_steps} != 0'
+
     batch_size = args.batch_size // args.grad_accumulation_steps
+    if args.mlperf:
+        logging.log_event(logging.constants.GRADIENT_ACCUMULATION_STEPS, value=args.grad_accumulation_steps)
+        logging.log_event(logging.constants.SUBMISSION_BENCHMARK, value=logging.constants.RNNT)
+        logging.log_event(logging.constants.SUBMISSION_ORG, value='my-organization')
+        logging.log_event(logging.constants.SUBMISSION_DIVISION, value=logging.constants.CLOSED)  # closed or open
+        logging.log_event(logging.constants.SUBMISSION_STATUS, value=logging.constants.ONPREM)  # on-prem/cloud/research
+        logging.log_event(logging.constants.SUBMISSION_PLATFORM, value='my platform')
+        logging.log_end(logging.constants.INIT_STOP)
 
-    logging.log_event(logging.constants.SUBMISSION_BENCHMARK, value=logging.constants.RNNT)
-    logging.log_event(logging.constants.SUBMISSION_ORG, value='my-organization')
-    logging.log_event(logging.constants.SUBMISSION_DIVISION, value=logging.constants.CLOSED) # closed or open
-    logging.log_event(logging.constants.SUBMISSION_STATUS, value=logging.constants.ONPREM) # on-prem/cloud/research
-    logging.log_event(logging.constants.SUBMISSION_PLATFORM, value='my platform')
-
-    logging.log_end(logging.constants.INIT_STOP)
     if multi_gpu:
         torch.distributed.barrier()
-    logging.log_start(logging.constants.RUN_START)
+    if args.mlperf:
+        logging.log_start(logging.constants.RUN_START)
     if multi_gpu:
         torch.distributed.barrier()
 
@@ -246,27 +271,27 @@ def main():
         val_splicing_kw,
         val_specaugm_kw,
     ) = config.input(cfg, 'val')
-
-    logging.log_event(logging.constants.DATA_TRAIN_MAX_DURATION,
-                      value=train_dataset_kw['max_duration'])
-    logging.log_event(logging.constants.DATA_SPEED_PERTURBATON_MAX,
-                      value=train_dataset_kw['speed_perturbation']['max_rate'])
-    logging.log_event(logging.constants.DATA_SPEED_PERTURBATON_MIN,
-                      value=train_dataset_kw['speed_perturbation']['min_rate'])
-    logging.log_event(logging.constants.DATA_SPEC_AUGMENT_FREQ_N,
-                      value=train_specaugm_kw['freq_masks'])
-    logging.log_event(logging.constants.DATA_SPEC_AUGMENT_FREQ_MIN,
-                      value=train_specaugm_kw['min_freq'])
-    logging.log_event(logging.constants.DATA_SPEC_AUGMENT_FREQ_MAX,
-                      value=train_specaugm_kw['max_freq'])
-    logging.log_event(logging.constants.DATA_SPEC_AUGMENT_TIME_N,
-                      value=train_specaugm_kw['time_masks'])
-    logging.log_event(logging.constants.DATA_SPEC_AUGMENT_TIME_MIN,
-                      value=train_specaugm_kw['min_time'])
-    logging.log_event(logging.constants.DATA_SPEC_AUGMENT_TIME_MAX,
-                      value=train_specaugm_kw['max_time'])
-    logging.log_event(logging.constants.GLOBAL_BATCH_SIZE,
-                      value=batch_size * world_size * args.grad_accumulation_steps)
+    if args.mlperf:
+        logging.log_event(logging.constants.DATA_TRAIN_MAX_DURATION,
+                          value=train_dataset_kw['max_duration'])
+        logging.log_event(logging.constants.DATA_SPEED_PERTURBATON_MAX,
+                          value=train_dataset_kw['speed_perturbation']['max_rate'])
+        logging.log_event(logging.constants.DATA_SPEED_PERTURBATON_MIN,
+                          value=train_dataset_kw['speed_perturbation']['min_rate'])
+        logging.log_event(logging.constants.DATA_SPEC_AUGMENT_FREQ_N,
+                          value=train_specaugm_kw['freq_masks'])
+        logging.log_event(logging.constants.DATA_SPEC_AUGMENT_FREQ_MIN,
+                          value=train_specaugm_kw['min_freq'])
+        logging.log_event(logging.constants.DATA_SPEC_AUGMENT_FREQ_MAX,
+                          value=train_specaugm_kw['max_freq'])
+        logging.log_event(logging.constants.DATA_SPEC_AUGMENT_TIME_N,
+                          value=train_specaugm_kw['time_masks'])
+        logging.log_event(logging.constants.DATA_SPEC_AUGMENT_TIME_MIN,
+                          value=train_specaugm_kw['min_time'])
+        logging.log_event(logging.constants.DATA_SPEC_AUGMENT_TIME_MAX,
+                          value=train_specaugm_kw['max_time'])
+        logging.log_event(logging.constants.GLOBAL_BATCH_SIZE,
+                          value=batch_size * world_size * args.grad_accumulation_steps)
 
     tokenizer_kw = config.tokenizer(cfg)
     tokenizer = Tokenizer(**tokenizer_kw)
@@ -286,7 +311,8 @@ def main():
         PermuteAudio(),
     )
 
-    logging.log_event(logging.constants.DATA_TRAIN_NUM_BUCKETS, value=args.num_buckets)
+    if args.mlperf:
+        logging.log_event(logging.constants.DATA_TRAIN_NUM_BUCKETS, value=args.num_buckets)
 
     if args.num_buckets is not None:
         sampler = dali_sampler.BucketingSampler(
@@ -312,30 +338,33 @@ def main():
                                   tokenizer=tokenizer)
 
     val_loader = DaliDataLoader(gpu_id=args.local_rank,
-                                    dataset_path=args.dataset_dir,
-                                    config_data=val_dataset_kw,
-                                    config_features=val_features_kw,
-                                    json_names=args.val_manifests,
-                                    batch_size=args.val_batch_size,
-                                    sampler=dali_sampler.SimpleSampler(),
-                                    pipeline_type="val",
-                                    device_type=args.dali_device,
-                                    tokenizer=tokenizer)
+                                dataset_path=args.dataset_dir,
+                                config_data=val_dataset_kw,
+                                config_features=val_features_kw,
+                                json_names=args.val_manifests,
+                                batch_size=args.val_batch_size,
+                                sampler=dali_sampler.SimpleSampler(),
+                                pipeline_type="val",
+                                device_type=args.dali_device,
+                                tokenizer=tokenizer)
 
     train_feat_proc = train_augmentations
-    val_feat_proc   = val_augmentations
+    val_feat_proc = val_augmentations
 
     train_feat_proc.cuda()
     val_feat_proc.cuda()
 
     steps_per_epoch = len(train_loader) // args.grad_accumulation_steps
 
-    logging.log_event(logging.constants.TRAIN_SAMPLES, value=train_loader.dataset_size)
-    logging.log_event(logging.constants.EVAL_SAMPLES, value=val_loader.dataset_size)
+    if args.mlperf:
+        logging.log_event(logging.constants.TRAIN_SAMPLES, value=train_loader.dataset_size)
+        logging.log_event(logging.constants.EVAL_SAMPLES, value=val_loader.dataset_size)
 
     # set up the model
     rnnt_config = config.rnnt(cfg)
-    logging.log_event(logging.constants.MODEL_WEIGHTS_INITIALIZATION_SCALE, value=args.weights_init_scale)
+    rnnt_config['mlperf'] = args.mlperf
+    if args.mlperf:
+        logging.log_event(logging.constants.MODEL_WEIGHTS_INITIALIZATION_SCALE, value=args.weights_init_scale)
     if args.weights_init_scale is not None:
         rnnt_config['weights_init_scale'] = args.weights_init_scale
     if args.hidden_hidden_bias_scale is not None:
@@ -344,26 +373,28 @@ def main():
     model.cuda()
     blank_idx = tokenizer.num_labels
     loss_fn = RNNTLoss(blank_idx=blank_idx)
-    logging.log_event(logging.constants.EVAL_MAX_PREDICTION_SYMBOLS, value=args.max_symbol_per_sample)
-    greedy_decoder = RNNTGreedyDecoder( blank_idx=blank_idx,
-                                        max_symbol_per_sample=args.max_symbol_per_sample)
+    if args.mlperf:
+        logging.log_event(logging.constants.EVAL_MAX_PREDICTION_SYMBOLS, value=args.max_symbol_per_sample)
+    greedy_decoder = RNNTGreedyDecoder(blank_idx=blank_idx,
+                                       max_symbol_per_sample=args.max_symbol_per_sample)
 
     print_once(f'Model size: {num_weights(model) / 10**6:.1f}M params\n')
 
-    opt_eps=1e-9
-    logging.log_event(logging.constants.OPT_NAME, value='lamb')
-    logging.log_event(logging.constants.OPT_BASE_LR, value=args.lr)
-    logging.log_event(logging.constants.OPT_LAMB_EPSILON, value=opt_eps)
-    logging.log_event(logging.constants.OPT_LAMB_LR_DECAY_POLY_POWER, value=args.lr_exp_gamma)
-    logging.log_event(logging.constants.OPT_LR_WARMUP_EPOCHS, value=args.warmup_epochs)
-    logging.log_event(logging.constants.OPT_LAMB_LR_HOLD_EPOCHS, value=args.hold_epochs)
-    logging.log_event(logging.constants.OPT_LAMB_BETA_1, value=args.beta1)
-    logging.log_event(logging.constants.OPT_LAMB_BETA_2, value=args.beta2)
-    logging.log_event(logging.constants.OPT_GRADIENT_CLIP_NORM, value=args.clip_norm)
-    logging.log_event(logging.constants.OPT_LR_ALT_DECAY_FUNC, value=True)
-    logging.log_event(logging.constants.OPT_LR_ALT_WARMUP_FUNC, value=True)
-    logging.log_event(logging.constants.OPT_LAMB_LR_MIN, value=args.min_lr)
-    logging.log_event(logging.constants.OPT_WEIGHT_DECAY, value=args.weight_decay)
+    opt_eps = 1e-9
+    if args.mlperf:
+        logging.log_event(logging.constants.OPT_NAME, value='lamb')
+        logging.log_event(logging.constants.OPT_BASE_LR, value=args.lr)
+        logging.log_event(logging.constants.OPT_LAMB_EPSILON, value=opt_eps)
+        logging.log_event(logging.constants.OPT_LAMB_LR_DECAY_POLY_POWER, value=args.lr_exp_gamma)
+        logging.log_event(logging.constants.OPT_LR_WARMUP_EPOCHS, value=args.warmup_epochs)
+        logging.log_event(logging.constants.OPT_LAMB_LR_HOLD_EPOCHS, value=args.hold_epochs)
+        logging.log_event(logging.constants.OPT_LAMB_BETA_1, value=args.beta1)
+        logging.log_event(logging.constants.OPT_LAMB_BETA_2, value=args.beta2)
+        logging.log_event(logging.constants.OPT_GRADIENT_CLIP_NORM, value=args.clip_norm)
+        logging.log_event(logging.constants.OPT_LR_ALT_DECAY_FUNC, value=True)
+        logging.log_event(logging.constants.OPT_LR_ALT_WARMUP_FUNC, value=True)
+        logging.log_event(logging.constants.OPT_LAMB_LR_MIN, value=args.min_lr)
+        logging.log_event(logging.constants.OPT_WEIGHT_DECAY, value=args.weight_decay)
 
     # optimization
     kw = {'params': model.param_groups(args.lr), 'lr': args.lr,
@@ -390,7 +421,8 @@ def main():
         ema_model = copy.deepcopy(model).cuda()
     else:
         ema_model = None
-    logging.log_event(logging.constants.MODEL_EVAL_EMA_FACTOR, value=args.ema)
+    if args.mlperf:
+        logging.log_event(logging.constants.MODEL_EVAL_EMA_FACTOR, value=args.ema)
 
     if multi_gpu:
         model = DistributedDataParallel(model)
@@ -411,15 +443,23 @@ def main():
     epoch = 1
     step = start_epoch * steps_per_epoch + 1
 
+    # FB5 Log for a certain amount of time.
+    if args.fb5logger is not None:
+        fb5logger.run_start()
+    total_batches = 0
+    start_time = time.time()
+    MAX_TIME = 120.0
+    # Start Batch Loop
+
     # training loop
     model.train()
     for epoch in range(start_epoch + 1, args.epochs + 1):
-
-        logging.log_start(logging.constants.BLOCK_START,
-                          metadata=dict(first_epoch_num=epoch,
-                                        epoch_count=1))
-        logging.log_start(logging.constants.EPOCH_START,
-                          metadata=dict(epoch_num=epoch))
+        if args.mlperf:
+            logging.log_start(logging.constants.BLOCK_START,
+                              metadata=dict(first_epoch_num=epoch,
+                                            epoch_count=1))
+            logging.log_start(logging.constants.EPOCH_START,
+                              metadata=dict(epoch_num=epoch))
 
         epoch_utts = 0
         accumulated_batches = 0
@@ -441,14 +481,14 @@ def main():
 
             log_probs, log_prob_lens = model(feats, feat_lens, txt, txt_lens)
             loss = loss_fn(log_probs[:, :log_prob_lens.max().item()],
-                                      log_prob_lens, txt, txt_lens)
+                           log_prob_lens, txt, txt_lens)
 
             loss /= args.grad_accumulation_steps
 
             del log_probs, log_prob_lens
 
             if torch.isnan(loss).any():
-                print_once(f'WARNING: loss is NaN; skipping update')
+                print_once('WARNING: loss is NaN; skipping update')
             else:
                 if args.amp:
                     with amp.scale_loss(loss, optimizer) as scaled_loss:
@@ -460,6 +500,7 @@ def main():
                 step_utts += batch[0].size(0) * world_size
                 epoch_utts += batch[0].size(0) * world_size
                 accumulated_batches += 1
+                total_batches += 1
 
             if accumulated_batches % args.grad_accumulation_steps == 0:
 
@@ -478,15 +519,14 @@ def main():
                 optimizer.step()
                 apply_ema(model, ema_model, args.ema)
 
-                if step % args.log_frequency == 0:
+                if step % args.log_frequency == 0 or (time.time() - start_time) > MAX_TIME:
 
                     if args.prediction_frequency is None or step % args.prediction_frequency == 0:
                         preds = greedy_decoder.decode(model, feats, feat_lens)
-                        wer, pred_utt, ref = greedy_wer(
-                                preds,
-                                txt,
-                                txt_lens,
-                                tokenizer.detokenize)
+                        wer, pred_utt, ref = greedy_wer(preds,
+                                                        txt,
+                                                        txt_lens,
+                                                        tokenizer.detokenize)
                         print_once(f'  Decoded:   {pred_utt[:90]}')
                         print_once(f'  Reference: {ref[:90]}')
                         wer = {'wer': 100 * wer}
@@ -506,23 +546,31 @@ def main():
                          'seq-len-max': max(all_feat_lens).item(),
                          'lrate': optimizer.param_groups[0]['lr']})
 
+                    # FB5 Logger
+                    if (time.time() - start_time) > MAX_TIME:
+                        break
+
                 step_start_time = time.time()
 
                 step += 1
                 accumulated_batches = 0
                 # end of step
-
-        logging.log_end(logging.constants.EPOCH_STOP,
-                        metadata=dict(epoch_num=epoch))
+        if args.mlperf:
+            logging.log_end(logging.constants.EPOCH_STOP,
+                            metadata=dict(epoch_num=epoch))
 
         epoch_time = time.time() - epoch_start_time
         log((epoch,), None, 'train_avg', {'throughput': epoch_utts / epoch_time,
                                           'took': epoch_time})
 
+        # FB5 Logger
+        if (time.time() - start_time) > MAX_TIME:
+            break
+
         if epoch % args.val_frequency == 0:
             wer = evaluate(epoch, step, val_loader, val_feat_proc,
                            tokenizer.detokenize, ema_model, loss_fn,
-                           greedy_decoder, args.amp)
+                           greedy_decoder, args.amp, args)
 
             last_wer = wer
             if wer < best_wer and epoch >= args.save_best_from:
@@ -531,14 +579,17 @@ def main():
                 best_wer = wer
 
         save_this_epoch = (args.save_frequency is not None and epoch % args.save_frequency == 0) \
-                       or (epoch in args.keep_milestones)
+            or (epoch in args.keep_milestones)
         if save_this_epoch:
             checkpointer.save(model, ema_model, optimizer, epoch, step, best_wer)
-
-        logging.log_end(logging.constants.BLOCK_STOP, metadata=dict(first_epoch_num=epoch))
+        if args.mlperf:
+            logging.log_end(logging.constants.BLOCK_STOP, metadata=dict(first_epoch_num=epoch))
 
         if last_wer <= args.target:
-            logging.log_end(logging.constants.RUN_STOP, metadata={'status': 'success'})
+            if args.mlperf:
+                logging.log_end(logging.constants.RUN_STOP, metadata={'status': 'success'})
+            if args.fb5logger is not None:
+                fb5logger.run_stop(total_batches, args.batch_size)
             print_once(f'Finished after {args.epochs_this_job} epochs.')
             break
         if 0 < args.epochs_this_job <= epoch - start_epoch:
@@ -549,11 +600,14 @@ def main():
     log((), None, 'train_avg', {'throughput': epoch_utts / epoch_time})
 
     if last_wer > args.target:
-        logging.log_end(logging.constants.RUN_STOP, metadata={'status': 'aborted'})
+        if args.mlperf:
+            logging.log_end(logging.constants.RUN_STOP, metadata={'status': 'aborted'})
+        if args.fb5logger is not None:
+            fb5logger.run_stop(total_batches, args.batch_size)
 
     if epoch == args.epochs:
         evaluate(epoch, step, val_loader, val_feat_proc, tokenizer.detokenize,
-                 ema_model, loss_fn, greedy_decoder, args.amp)
+                 ema_model, loss_fn, greedy_decoder, args.amp, args)
 
     flush_log()
     if args.save_at_the_end:
