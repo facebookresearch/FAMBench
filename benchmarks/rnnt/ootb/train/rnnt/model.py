@@ -86,6 +86,7 @@ class RNNT(nn.Module):
                                  weights_init_scale=weights_init_scale,
                                  dropout=enc_dropout,
                                  tensor_name='pre_rnn',
+                                 mlperf=mlperf,
                                  )
 
         enc_mod["stack_time"] = StackTime(enc_stack_time_factor)
@@ -98,6 +99,7 @@ class RNNT(nn.Module):
                                   weights_init_scale=weights_init_scale,
                                   dropout=enc_dropout,
                                   tensor_name='post_rnn',
+                                  mlperf=mlperf,
                                   )
 
         self.encoder = torch.nn.ModuleDict(enc_mod)
@@ -118,6 +120,7 @@ class RNNT(nn.Module):
                 weights_init_scale=weights_init_scale,
                 dropout=pred_dropout,
                 tensor_name='dec_rnn',
+                mlperf=mlperf,
             ),
         })
 
