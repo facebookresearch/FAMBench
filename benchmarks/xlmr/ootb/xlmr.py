@@ -55,10 +55,13 @@ def run():
     xlmr = None
     data = None
     if(args.inference_only): 
-        data = generate_inference_data(nbatches=3)
+        data = generate_inference_data(nbatches=10)
         xlmr = get_inference_model()
     else:
         pass # TODO train side
+
+    # TODO: run timer sync for gpu torch.cuda.synchronize(). run .cuda() on model and data here. 
+    # Use .half() on the model to use fp16 instead of 32. 2x size!
 
     # benchmark! 
     if args.logfile is not None:
