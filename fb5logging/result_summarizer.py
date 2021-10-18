@@ -69,16 +69,17 @@ def _find_and_read_row_multiple(log_str : str, key : str):
         row_lst[i].pop('key')
     return row_lst
 
-def _find_and_read_row(log_str : str, key : str):
+def _find_and_read_row(log_str : str, key : str, row_must_exist=True):
     """
     Finds first matching row in a log file string and converts it into a dict.
-    Use the multiple row version if number of rows with this key is multiple or unknown. 
-    This function has an expectation that the row exists and there is only 1. 
     """
     regex = r'.*"key": "{}".*'.format(key)
     row = re.search(regex, log_str)
     if row is None:
-      raise Exception('Failed to match regex: '.format(regex))
+        if(row_must_exist):
+            raise Exception('Failed to match regex: '.format(regex))
+        else:
+            return None
     row = json.loads(row.group(0))
     row.pop('key')
     return row
@@ -98,7 +99,14 @@ def get_exps_metric(log_str : str):
     run_stop_time = float(run_stop_row['time_ms'])
     seconds_runtime = (run_stop_time - run_start_time) / 1000
 
-    num_batches, batch_size = run_stop_row['num_batches'], run_stop_row['batch_size']
+    # get num batches and batch size based on available log info
+    # batch info in run_stop row to be deprecated
+    batch_size_row = _find_and_read_row(log_str, constants.BATCH_SIZE, row_must_exist=False)
+    num_batches_row = _find_and_read_row(log_str, constants.NUM_BATCHES, row_must_exist=False)
+    if(num_batches_row is not None and batch_size_row is not None):
+        num_batches, batch_size = num_batches_row['num_batches'], batch_size_row['batch_size']
+    else:
+        num_batches, batch_size = run_stop_row['num_batches'], run_stop_row['batch_size']
 
     # calculate throughput, which is score
     if(seconds_runtime == 0):

@@ -69,10 +69,10 @@ class FB5Logger():
         self.log_line(stop_dict, constants.RUN_STOP)
 
     def record_batch_info(self, num_batches = None, batch_size = None):
-        nbatches_dict = {"num_batches": num_batches}
         batch_size_dict = {"batch_size": batch_size}
-        self.log_line(nbatches_dict, constants.BATCH_SIZE)
-        self.log_line(batch_size_dict, constants.NUM_BATCHES)
+        self.log_line(batch_size_dict, constants.BATCH_SIZE)
+        nbatches_dict = {"num_batches": num_batches}
+        self.log_line(nbatches_dict, constants.NUM_BATCHES)
     
     def batch_start(self, time_ms = None):
         """
