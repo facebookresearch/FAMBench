@@ -45,7 +45,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument("--logfile", type=str, default=None)
     parser.add_argument("--inference-only", action="store_true", default=False)
     parser.add_argument("--fb5config", type=str, default="tiny")
-    parser.add_argument("--use-gpu", action="store_true", default=True) 
+    parser.add_argument("--use-gpu", action="store_true", default=False) 
     return parser
 
 def run():
@@ -54,6 +54,7 @@ def run():
 
     # check for device
     if(args.use_gpu):
+        print('using le gpu')
         assert torch.cuda.is_available(), "No cuda device is available."
         device = torch.device("cuda", 0)
 
@@ -76,8 +77,8 @@ def run():
 
     # use gpu
     if args.use_gpu: 
-        data = data.cuda()
-        xlmr = xlmr.cuda()
+        data = data.to(device)
+        xlmr = xlmr.to(device)
 
     # benchmark! 
     if args.logfile is not None:
