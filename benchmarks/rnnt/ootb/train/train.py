@@ -206,7 +206,7 @@ def main():
 
     if args.fb5logger is not None:
         fb5logger = FB5Logger(args.fb5logger)
-        fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
+        fb5logger.header("RNN-T", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
 
     assert(torch.cuda.is_available())
     assert args.prediction_frequency is None or args.prediction_frequency % args.log_frequency == 0
