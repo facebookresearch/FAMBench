@@ -8,23 +8,29 @@ import os
 import re
 import sys
 import glob
+import math
 import loggerconstants as constants
 
 class SummaryRow():
     """
     Keep track of all common attributes between all summary row and other data
     """
-    def __init__():
-        top_level_keys = [
+    top_level_keys = [
             "benchmark",
             "implementation",
             "mode",
             "config",
             "score",
             "units"]
+    
+    def __init__():
+        summary_dict = {}
             
-    def 
-
+    def isComplete():
+        for key in top_level_keys:
+            if(key not in top_level_keys):
+                return False
+        return True
 
 ## Utility
 def _flatten_dict(d: dict):
@@ -50,6 +56,32 @@ def _lst_to_file(lst: list, file_path: str):
     delimiter = ' ' #space delimiter
     with open(file_path, 'a') as f:
         f.write(delimiter.join(lst) + '\n')
+
+def _find_and_read_row_multiple(log_str : str, key : str):
+    """
+    Finds multiple rows in a log file string and converts it into list of dicts.
+    Gives in order of how it appears in the document.
+    """
+    regex = r'.*"key": "{}".*'.format(key)
+    row_lst = re.findall(regex, log_str)
+    for i, row in enumerate(row_lst):
+        row_lst[i] = json.loads(row)
+        row_lst[i].pop('key')
+    return row_lst
+
+def _find_and_read_row(log_str : str, key : str):
+    """
+    Finds first matching row in a log file string and converts it into a dict.
+    Use the multiple row version if number of rows with this key is multiple or unknown. 
+    This function has an expectation that the row exists and there is only 1. 
+    """
+    regex = r'.*"key": "{}".*'.format(key)
+    row = re.search(regex, log_str)
+    if row is None:
+      raise Exception('Failed to match regex: '.format(regex))
+    row = json.loads(row.group(0))
+    row.pop('key')
+    return row
 
 ## Metrics
 
@@ -121,25 +153,30 @@ def _calculate_batch_latency(log_str : str, percentile : float):
     """
     Calculates batch latency at a given percentile in range [0, 1]. 
     """
-    # use find and read row but need a notion of order? 
-    # find all rows with key constants.BATCH_START and BATCH_STOP
-    # then loop through and find times. order them. 
-    # then take the nth one based on the percentile. return that. 
-    pass
+    batch_start_lst = _find_and_read_row_multiple(log_str, constants.BATCH_START)
+    batch_stop_lst = _find_and_read_row_multiple(log_str, constants.BATCH_STOP)
+    if(len(batch_start_lst) != len(batch_stop_lst)):
+        raise Exception('Number of batch starts does not match number of batch stops')
+    nbatches = len(batch_start_lst)
+    if(nbatches == 0):
+        return None
+
+    batch_times = []
+    for i in range(nbatches):
+        # calculate runtime
+        batch_start_time = float(batch_start_lst[i]['time_ms'])
+        batch_stop_time = float(batch_stop_lst[i]['time_ms'])
+        batch_runtime = (batch_stop_time - batch_start_time) / 1000 # seconds
+        batch_times.append(batch_runtime)
+    
+    batch_times.sort()
+    # default to slower latency if percentile doesn't exactly match a batch time
+    batch_idx = math.ceil(percentile * nbatches) - 1
+    batch_time_at_percentile = batch_times[batch_idx]
+
+    return batch_time_at_percentile
 
 ## Read and process log files 
-
-def _find_and_read_row(result : str, key : str):
-    """
-    Finds a single row in a log file string and converts it into a dict.
-    """
-    regex = r'.*"key": "{}".*'.format(key)
-    row = re.search(regex, result)
-    if row is None:
-      raise Exception('Failed to match regex: '.format(regex))
-    row = json.loads(row.group(0))
-    row.pop('key')
-    return row
 
 def _create_summary_row(file_path : str):
     """
@@ -150,9 +187,13 @@ def _create_summary_row(file_path : str):
         log_file_str = f.read()
     header = _find_and_read_row(log_file_str, constants.HEADER) 
     metrics = _calculate_metrics(log_file_str, header['score_metric'])
-
     row = header
     row['metrics'] = metrics
+    
+    # TODO: allow encoding of extra metadata and include the p95 in the key
+    batch_latency = _calculate_batch_latency(log_file_str, 0.95)
+    row['batch_latency'] = batch_latency 
+
     return row
 
 def _rows_to_file(rows: list, folder_path: str, summary_view=constants.INTERMEDIATE_VIEW):
@@ -173,7 +214,8 @@ def _rows_to_file(rows: list, folder_path: str, summary_view=constants.INTERMEDI
             "mode",
             "config",
             "score",
-            "units"]
+            "units",
+            "batch_latency"]
         _lst_to_file(top_level_keys, file_path)
         for row in rows:
             flattened_row = _flatten_dict(row)
