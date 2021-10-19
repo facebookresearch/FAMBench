@@ -24,7 +24,7 @@ def get_inference_model():
     # TODO use torchscript? jit/script this model?
     return fairseq_xlmr_large.model 
 
-def generate_inference_data(nbatches=10, batchsize=32, seq_length=64, vocab_size=1000):
+def generate_inference_data(nbatches=100, batchsize=32, seq_length=64, vocab_size=1000):
     shape = (nbatches, batchsize, seq_length)
     data = torch.rand(shape) * vocab_size
     data = data.int()
@@ -70,7 +70,7 @@ def run():
     xlmr = None
     data = None
     if(args.inference_only): 
-        data = generate_inference_data(nbatches=10)
+        data = generate_inference_data()
         xlmr = get_inference_model()
     else:
         pass # TODO train side
