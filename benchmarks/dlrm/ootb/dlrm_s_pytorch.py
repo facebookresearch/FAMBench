@@ -232,12 +232,15 @@ class LRPolicyScheduler(_LRScheduler):
         return lr
 
 
-# quantize_fbgemm_gpu_embedding_bag is substantially lifted from
-# fbgemm_gpu/test/split_embedding_inference_converter.py, class SplitEmbInferenceConverter.
+# quantize_fbgemm_gpu_embedding_bag is partially lifted from
+# fbgemm_gpu/test/split_embedding_inference_converter.py, def _quantize_split_embs.
 # Converts SplitTableBatchedEmbeddingBagsCodegen to IntNBitTableBatchedEmbeddingBagsCodegen
 def quantize_fbgemm_gpu_embedding_bag(model, quantize_type, device):
     embedding_specs = []
-    use_cpu = device.type == "cpu"
+    if device.type == "cpu":
+        emb_location = split_table_batched_embeddings_ops.EmbeddingLocation.HOST
+    else:
+        emb_location = split_table_batched_embeddings_ops.EmbeddingLocation.DEVICE
 
     for (E, D, _, _) in model.embedding_specs:
         weights_ty = quantize_type
@@ -246,16 +249,17 @@ def quantize_fbgemm_gpu_embedding_bag(model, quantize_type, device):
             weights_ty = (
                 SparseType.FP16
             )  # fall back to FP16 if dimension couldn't be aligned with the required size
-        embedding_specs.append((E, D, weights_ty))
+        embedding_specs.append(("", E, D, weights_ty, emb_location))
 
     q_model = (
         split_table_batched_embeddings_ops.IntNBitTableBatchedEmbeddingBagsCodegen(
             embedding_specs=embedding_specs,
             pooling_mode=model.pooling_mode,
-            use_cpu=use_cpu,
+            device=device,
         )
     )
-    for t, (_, _, weight_ty) in enumerate(embedding_specs):
+    q_model.initialize_weights()
+    for t, (_, _, _, weight_ty, _) in enumerate(embedding_specs):
         if weight_ty == SparseType.FP16:
             original_weight = model.split_embedding_weights()[t]
             q_weight = original_weight.half()
@@ -277,7 +281,6 @@ def quantize_fbgemm_gpu_embedding_bag(model, quantize_type, device):
                 .astype(np.float16)
                 .view(np.uint8)
             )
-
             q_model.split_embedding_weights()[t][0].data.copy_(weights)
             q_model.split_embedding_weights()[t][1].data.copy_(scale_shift)
 
