@@ -21,10 +21,11 @@ def time_sec(use_gpu):
 def get_inference_model():
     fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large') 
     fairseq_xlmr_large.eval()
+    fairseq_xlmr_large.half()
     # TODO use torchscript? jit/script this model?
     return fairseq_xlmr_large.model 
 
-def generate_inference_data(nbatches=100, batchsize=32, seq_length=64, vocab_size=1000):
+def generate_inference_data(nbatches=100, batchsize=64, seq_length=64, vocab_size=1000):
     shape = (nbatches, batchsize, seq_length)
     data = torch.rand(shape) * vocab_size
     data = data.int()
