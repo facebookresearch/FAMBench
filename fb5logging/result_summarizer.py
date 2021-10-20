@@ -179,7 +179,7 @@ def _create_summary_row(file_path : str):
     
     # TODO: allow encoding of extra metadata and include the p95 in the key
     batch_latency = _calculate_batch_latency(log_file_str, 0.95)
-    row['batch_latency'] = batch_latency 
+    row['batch_latency_p95'] = batch_latency 
 
     return row
 
@@ -202,7 +202,7 @@ def _rows_to_file(rows: list, folder_path: str, summary_view=constants.INTERMEDI
             "config",
             "score",
             "units",
-            "batch_latency"]
+            "batch_latency_p95"]
         _lst_to_file(top_level_keys, file_path)
         for row in rows:
             flattened_row = _flatten_dict(row)
