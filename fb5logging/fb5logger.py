@@ -61,7 +61,7 @@ class FB5Logger():
         """
         if(time_ms is None):
             time_ms = self._time_ms()
-        stop_dict = {"time_ms": self._time_ms(), "num_batches": num_batches, "batch_size": batch_size}
+        stop_dict = {"time_ms": self.time_ms, "num_batches": num_batches, "batch_size": batch_size}
         if extra_metadata is not None:
             stop_dict["extra_metadata"] = extra_metadata
         self.log_line(stop_dict, constants.RUN_STOP)
