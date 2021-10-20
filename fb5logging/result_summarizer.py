@@ -1,5 +1,5 @@
 '''
-Summarizes a set of results.
+Given a folder of .log files, outputs a summarization file of those logs in table form.
 '''
 
 import argparse
@@ -158,7 +158,7 @@ def _calculate_batch_latency(log_str : str, percentile : float):
     
     batch_times.sort()
     # default to slower latency if percentile doesn't exactly match a batch time
-    batch_idx = math.ceil(percentile * nbatches) - 1
+    batch_idx = math.ceil(percentile * (nbatches - 1)) 
     batch_time_at_percentile = batch_times[batch_idx]
 
     return batch_time_at_percentile
