@@ -87,7 +87,7 @@ def get_exps_metric(log_str : str):
     else:
         num_batches, batch_size = run_stop_row['num_batches'], run_stop_row['batch_size']
 
-    # calculate throughput, which is score
+    # calculate throughput
     if(seconds_runtime == 0):
         throughput = 'error: runtime is zero'
     else:
@@ -140,6 +140,8 @@ def _calculate_batch_latency(log_str : str, percentile : float):
     """
     Calculates batch latency at a given percentile in range [0, 1]. 
     """
+    assert 0 <= percentile <= 1
+
     batch_start_lst = _find_and_read_row_multiple(log_str, constants.BATCH_START)
     batch_stop_lst = _find_and_read_row_multiple(log_str, constants.BATCH_STOP)
     if(len(batch_start_lst) != len(batch_stop_lst)):
@@ -177,9 +179,11 @@ def _create_summary_row(file_path : str):
     row = header
     row['metrics'] = metrics
     
-    # TODO: allow encoding of extra metadata and include the p95 in the key
+    # TODO: fix units and percentile for latency
     batch_latency = _calculate_batch_latency(log_file_str, 0.95)
-    row['batch_latency_p95'] = batch_latency 
+    row['batch_latency_95_sec'] = batch_latency 
+
+    # TODO: allow encoding of extra metadata 
 
     return row
 
@@ -202,7 +206,7 @@ def _rows_to_file(rows: list, folder_path: str, summary_view=constants.INTERMEDI
             "config",
             "score",
             "units",
-            "batch_latency_p95"]
+            "batch_latency_95_sec"]
         _lst_to_file(top_level_keys, file_path)
         for row in rows:
             flattened_row = _flatten_dict(row)

@@ -71,7 +71,7 @@ def run():
     xlmr = None
     data = None
     if(args.inference_only): 
-        data = generate_inference_data(nbatches=3)
+        data = generate_inference_data()
         xlmr = get_inference_model()
     else:
         pass # TODO train side
