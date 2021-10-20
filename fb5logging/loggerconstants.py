@@ -18,6 +18,7 @@ BATCH_STOP = "batch_stop"
 NUM_BATCHES = "num_batches"
 BATCH_SIZE = "batch_size"
 FLOPS = "flops"
+EXTRA_METADATA = "extra_metadata"
 
 # loggerkey - model hyperparameters
 LEARNING_RATE = "learning_rate"
