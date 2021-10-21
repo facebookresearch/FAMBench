@@ -88,7 +88,7 @@ def run():
     evaluate_simple(xlmr, data, famlogger=famlogger) 
 
     if args.logfile is not None:
-        famlogger.run_stop(0, 0, time_ms=time_ms(args.use_gpu))    
+        famlogger.run_stop(time_ms=time_ms(args.use_gpu))    
         famlogger.record_batch_info(num_batches=data.shape[0], batch_size=data.shape[1])
 
 if __name__ == "__main__":

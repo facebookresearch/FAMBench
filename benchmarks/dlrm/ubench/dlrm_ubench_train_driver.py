@@ -84,7 +84,9 @@ if __name__ == "__main__":
             global_elap += elap
         if args.fb5logger is not None:
             extra_metadata={"GB/s": global_bytes / global_elap / 1.0e3, "ELAP": global_elap, "BYTES": global_bytes}
-            fb5logger.run_stop(args.steps, batch, extra_metadata=extra_metadata)
+            fb5logger.run_stop()
+            fb5logger.record_extra_metadata(extra_metadata)
+            fb5logger.record_batch_info(num_batches=args.steps, batch_size=batch)
     else:
         print("with linear dataset ", args.dataset, ", Data type: ", args.dtype)
         global_flops = 0
@@ -119,4 +121,6 @@ if __name__ == "__main__":
             global_elap += elap
         if args.fb5logger is not None:
             extra_metadata={"TF/s": global_flops / global_elap / 1.0e12, "ELAP": global_elap, "FLOPS": global_flops}
-            fb5logger.run_stop(args.steps, batch_size, extra_metadata=extra_metadata)
+            fb5logger.run_stop()
+            fb5logger.record_extra_metadata(extra_metadata)
+            fb5logger.record_batch_info(num_batches=args.steps, batch_size=batch_size)

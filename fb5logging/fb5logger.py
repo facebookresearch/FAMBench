@@ -67,14 +67,17 @@ class FB5Logger():
             stop_dict["extra_metadata"] = extra_metadata
         self.log_line(stop_dict, constants.RUN_STOP)
 
-    def extra_metadata(self, data):
+    def record_extra_metadata(self, data):
         """
         Log random and unstructured info (essentially whatever you want)
         """
-        extra_metadata_dict["extra_metadata"] = data 
+        extra_metadata_dict = {"extra_metadata": data}
         self.log_line(extra_metadata_dict, constants.EXTRA_METADATA)
 
     def record_batch_info(self, num_batches = None, batch_size = None):
+        """
+        Log info about batches 
+        """
         batch_size_dict = {"batch_size": batch_size}
         self.log_line(batch_size_dict, constants.BATCH_SIZE)
         nbatches_dict = {"num_batches": num_batches}

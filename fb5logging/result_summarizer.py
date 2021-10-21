@@ -85,7 +85,7 @@ def get_exps_metric(log_str : str):
     if(num_batches_row is not None and batch_size_row is not None):
         num_batches, batch_size = num_batches_row['num_batches'], batch_size_row['batch_size']
     else:
-        num_batches, batch_size = run_stop_row['num_batches'], run_stop_row['batch_size']
+        return None # missing necessary info to calculate exps
 
     # calculate throughput
     if(seconds_runtime == 0):
@@ -102,8 +102,9 @@ def get_tfps_metric(log_str):
     Given log file in form of loaded in-memory string, calculate
     teraflops/second 
     """
-    run_stop_row = _find_and_read_row(log_str, constants.RUN_STOP)
-    tfps = run_stop_row['extra_metadata']['TF/s']
+    # TODO: find a better place to log TF/s
+    extra_metadata_row = _find_and_read_row(log_str, constants.EXTRA_METADATA)
+    tfps = extra_metadata_row['extra_metadata']['TF/s']
     metrics_dict = {'score': tfps, 'units': "TF/s"}
     return metrics_dict
 
@@ -112,8 +113,9 @@ def get_gbps_metric(log_str):
     Given log file in form of loaded in-memory string, calculate
     teraflops/second 
     """
-    run_stop_row = _find_and_read_row(log_str, constants.RUN_STOP)
-    gbps = run_stop_row['extra_metadata']['GB/s']
+    # TODO: find a better place to log GB/s
+    extra_metadata_row = _find_and_read_row(log_str, constants.EXTRA_METADATA)
+    gbps = extra_metadata_row['extra_metadata']['GB/s']
     metrics_dict = {'score': gbps, 'units': "GB/s"}
     return metrics_dict
 

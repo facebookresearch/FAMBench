@@ -2350,7 +2350,8 @@ def run():
             )
 
     if args.fb5logger is not None:
-        fb5logger.run_stop(nbatches, args.mini_batch_size)
+        fb5logger.run_stop()
+        fb5logger.record_batch_info(num_batches=nbatches, batch_size=args.mini_batch_size)
 
     # profiling
     if args.enable_profiling:

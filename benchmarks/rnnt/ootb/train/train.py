@@ -589,7 +589,8 @@ def main():
             if args.mlperf:
                 logging.log_end(logging.constants.RUN_STOP, metadata={'status': 'success'})
             if args.fb5logger is not None:
-                fb5logger.run_stop(total_batches, args.batch_size)
+                fb5logger.run_stop()
+                fb5logger.record_batch_info(num_batches=total_batches, batch_size=args.batch_size)
             print_once(f'Finished after {args.epochs_this_job} epochs.')
             break
         if 0 < args.epochs_this_job <= epoch - start_epoch:
@@ -603,7 +604,8 @@ def main():
         if args.mlperf:
             logging.log_end(logging.constants.RUN_STOP, metadata={'status': 'aborted'})
         if args.fb5logger is not None:
-            fb5logger.run_stop(total_batches, args.batch_size)
+            fb5logger.run_stop()
+            fb5logger.record_batch_info(num_batches=total_batches, batch_size=args.batch_size)
 
     if epoch == args.epochs:
         evaluate(epoch, step, val_loader, val_feat_proc, tokenizer.detokenize,
