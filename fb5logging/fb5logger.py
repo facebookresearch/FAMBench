@@ -56,22 +56,13 @@ class FB5Logger():
         start_dict = {"time_ms": time_ms}
         self.log_line(start_dict, constants.RUN_START)
 
-<<<<<<< HEAD
-    # TODO: remove batch info args and migrate to record_batch_info
-    def run_stop(self, num_batches, batch_size, extra_metadata = None, time_ms = None):
-=======
     def run_stop(self, extra_metadata = None, time_ms = None):
->>>>>>> remove batch info from run_stop and add extra_metadata func
         """
         Records end of logging and any required data. 
         """
         if(time_ms is None):
             time_ms = self._time_ms()
-<<<<<<< HEAD
-        stop_dict = {"time_ms": time_ms, "num_batches": num_batches, "batch_size": batch_size}
-=======
         stop_dict = {"time_ms": self._time_ms()}
->>>>>>> remove batch info from run_stop and add extra_metadata func
         if extra_metadata is not None:
             stop_dict["extra_metadata"] = extra_metadata
         self.log_line(stop_dict, constants.RUN_STOP)
