@@ -35,6 +35,8 @@ class FB5Logger():
         log_info['key'] = key
         self._dump_json(log_info)
 
+    ## Externally used logging functions
+
     def header(self, benchmark_name, implementation_name, mode, config_name, score_metric=constants.EXPS):
         """
         Required for every log. Describes what the benchmark is. 
@@ -56,15 +58,13 @@ class FB5Logger():
         start_dict = {"time_ms": time_ms}
         self.log_line(start_dict, constants.RUN_START)
 
-    def run_stop(self, extra_metadata = None, time_ms = None):
+    def run_stop(self, time_ms = None):
         """
         Records end of logging and any required data. 
         """
         if(time_ms is None):
             time_ms = self._time_ms()
         stop_dict = {"time_ms": time_ms}
-        if extra_metadata is not None:
-            stop_dict["extra_metadata"] = extra_metadata
         self.log_line(stop_dict, constants.RUN_STOP)
 
     def record_extra_metadata(self, data):
