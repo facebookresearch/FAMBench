@@ -16,16 +16,18 @@
 
 export OMP_NUM_THREADS=1
 
-: ${DATA_DIR:=${1:-"/datasets/LibriSpeech"}}
+: ${DATA_DIR:=${1:-"$DATASET_DIR/LibriSpeech"}}
 : ${MODEL_CONFIG:=${2:-"configs/baseline_v3-1023sp.yaml"}}
-: ${OUTPUT_DIR:=${3:-"/results"}}
-: ${CHECKPOINT:=${4:-}}
+: ${OUTPUT_DIR:=${3:-"$RESULT_DIR"}}
+: ${FB5LOGGER:=${4}}
+: ${FB5CONFIG:=${5}}
+: ${CHECKPOINT:-}
 : ${CUDNN_BENCHMARK:=true}
-: ${NUM_GPUS:=8}
+: ${NUM_GPUS:=1}
 : ${AMP:=false}
 : ${GLOBAL_BATCH_SIZE:=1024}
 : ${VAL_BATCH_SIZE:=2}
-: ${GRAD_ACCUMULATION_STEPS:=8}
+: ${GRAD_ACCUMULATION_STEPS:=64}  # 8
 : ${LEARNING_RATE:=0.004}
 : ${LR_EXP_GAMMA:=0.935}  # ~0.005 in 80 epochs
 : ${NUM_BUCKETS=6} # empty means to use torch.utils.data.distributed.DistributedSampler
@@ -82,6 +84,8 @@ ARGS+=" --dali_device=$DALI_DEVICE"
 ARGS+=" --beta1=$BETA1"
 ARGS+=" --beta2=$BETA2"
 
+[ -n "$FB5LOGGER" ] &&               ARGS+=" --fb5logger=$FB5LOGGER"
+[ -n "$FB5CONFIG" ] &&               ARGS+=" --fb5config=$FB5CONFIG"
 [ "$AMP" = true ] &&                 ARGS+=" --amp"
 [ "$RESUME" = true ] &&              ARGS+=" --resume"
 [ "$CUDNN_BENCHMARK" = true ] &&     ARGS+=" --cudnn_benchmark"
@@ -101,4 +105,6 @@ ARGS+=" --beta2=$BETA2"
 [ -n "$MAX_SYMBOL_PER_SAMPLE" ] &&  ARGS+=" --max_symbol_per_sample=$MAX_SYMBOL_PER_SAMPLE"
 
 DISTRIBUTED=${DISTRIBUTED:-"-m torch.distributed.launch --nproc_per_node=$NUM_GPUS"}
-python ${DISTRIBUTED} train.py ${ARGS}
+script_dir=`dirname "${BASH_SOURCE[0]}"`
+set -x
+python ${DISTRIBUTED} "$script_dir/../train.py" ${ARGS}

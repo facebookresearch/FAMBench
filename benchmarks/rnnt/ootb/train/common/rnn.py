@@ -21,7 +21,7 @@ from mlperf import logging
 
 
 def rnn(input_size, hidden_size, num_layers,
-        forget_gate_bias=1.0, dropout=0.0,
+        forget_gate_bias=1.0, dropout=0.0, mlperf=False,
         **kwargs):
 
     return LSTM(
@@ -30,13 +30,15 @@ def rnn(input_size, hidden_size, num_layers,
         num_layers=num_layers,
         dropout=dropout,
         forget_gate_bias=forget_gate_bias,
+        mlperf=mlperf,
         **kwargs,
     )
+
 
 class LSTM(torch.nn.Module):
 
     def __init__(self, input_size, hidden_size, num_layers, dropout,
-                 forget_gate_bias, weights_init_scale=1.0,
+                 forget_gate_bias, mlperf, weights_init_scale=1.0,
                  hidden_hidden_bias_scale=0.0, **kwargs):
         """Returns an LSTM with forget gate bias init to `forget_gate_bias`.
 
@@ -66,22 +68,21 @@ class LSTM(torch.nn.Module):
             for name, v in self.lstm.named_parameters():
                 if "bias_ih" in name:
                     bias = getattr(self.lstm, name)
-                    bias.data[hidden_size:2*hidden_size].fill_(forget_gate_bias)
+                    bias.data[hidden_size:2 * hidden_size].fill_(forget_gate_bias)
                 if "bias_hh" in name:
                     bias = getattr(self.lstm, name)
-                    bias.data[hidden_size:2*hidden_size] *= float(hidden_hidden_bias_scale)
+                    bias.data[hidden_size:2 * hidden_size] *= float(hidden_hidden_bias_scale)
 
         for name, v in self.named_parameters():
             if 'weight' in name or 'bias' in name:
                 v.data *= float(weights_init_scale)
         tensor_name = kwargs['tensor_name']
-        logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
-                          metadata=dict(tensor=tensor_name))
-
+        if mlperf:
+            logging.log_event(logging.constants.WEIGHTS_INITIALIZATION,
+                              metadata=dict(tensor=tensor_name))
 
     def forward(self, x, h=None):
         x, h = self.lstm(x, h)
         if self.dropout:
             x = self.dropout(x)
         return x, h
-
