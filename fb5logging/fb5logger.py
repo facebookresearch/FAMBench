@@ -5,6 +5,7 @@ import json
 import time
 import loggerconstants as constants
 
+# TODO: change name to FAMLogger
 class FB5Logger():
 
     def __init__(self, log_file_path):
@@ -55,6 +56,7 @@ class FB5Logger():
         start_dict = {"time_ms": time_ms}
         self.log_line(start_dict, constants.RUN_START)
 
+    # TODO: remove batch info args and migrate to record_batch_info
     def run_stop(self, num_batches, batch_size, extra_metadata = None, time_ms = None):
         """
         Records end of logging and any required data. 
@@ -67,7 +69,25 @@ class FB5Logger():
         self.log_line(stop_dict, constants.RUN_STOP)
 
     def record_batch_info(self, num_batches = None, batch_size = None):
-        nbatches_dict = {"num_batches": num_batches}
         batch_size_dict = {"batch_size": batch_size}
-        self.log_line(nbatches_dict, constants.BATCH_SIZE)
-        self.log_line(batch_size_dict, constants.NUM_BATCHES)
+        self.log_line(batch_size_dict, constants.BATCH_SIZE)
+        nbatches_dict = {"num_batches": num_batches}
+        self.log_line(nbatches_dict, constants.NUM_BATCHES)
+    
+    def batch_start(self, time_ms = None):
+        """
+        Marks beginning of the model processing a batch
+        """
+        if(time_ms is None):
+            time_ms = self._time_ms()
+        batch_start_dict = {"time_ms": time_ms}
+        self.log_line(batch_start_dict, constants.BATCH_START)
+
+    def batch_stop(self, time_ms = None, batch_size = None):
+        """
+        Marks end of the model processing a batch
+        """
+        if(time_ms is None):
+            time_ms = self._time_ms()
+        batch_stop_dict = {"time_ms": time_ms, "batch_size": batch_size}
+        self.log_line(batch_stop_dict, constants.BATCH_STOP)

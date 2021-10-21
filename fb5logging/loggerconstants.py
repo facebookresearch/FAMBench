@@ -11,6 +11,8 @@ EPOCH_START = "epoch_start"
 EPOCH_STOP = "epoch_stop"
 RUN_START = "run_start"
 RUN_STOP = "run_stop"
+BATCH_START = "batch_start"
+BATCH_STOP = "batch_stop"
 
 # loggerkey - run information
 NUM_BATCHES = "num_batches"

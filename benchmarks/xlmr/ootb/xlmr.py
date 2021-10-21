@@ -36,9 +36,9 @@ def evaluate_simple(model, input_data, famlogger=None):
     Run data through the model
     """
     for batch in input_data:
-        # famlogger.batch_start()
+        famlogger.batch_start()
         output = model(batch)
-        # famlogger.batch_stop()
+        famlogger.batch_stop()
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -88,8 +88,8 @@ def run():
     evaluate_simple(xlmr, data, famlogger=famlogger) 
 
     if args.logfile is not None:
-        famlogger.run_stop(data.shape[0], data.shape[1], time_ms=time_ms(args.use_gpu))   
-        # famlogger.record_batch_info(num_batches=data.shape[0], batch_size=data.shape[1])
+        famlogger.run_stop(0, 0, time_ms=time_ms(args.use_gpu))    
+        famlogger.record_batch_info(num_batches=data.shape[0], batch_size=data.shape[1])
 
 if __name__ == "__main__":
     run()
