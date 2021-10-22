@@ -124,6 +124,13 @@ except (ImportError, OSError):
     apex_import_error_msg = traceback.format_exc()
     apex = None
 
+try:
+    import torch2trt
+    from torch2trt import torch2trt
+except (ImportError, OSError):
+    torch2trt_import_error_msg = traceback.format_exc()
+    torch2trt = None
+
 # mixed-dimension trick
 from tricks.md_embedding_bag import PrEmbeddingBag, md_solver
 
@@ -1387,6 +1394,8 @@ def run():
         choices=["Split", "IntN"],
         default="Split",
     )
+    # torch2trt
+    parser.add_argument("--use-torch2trt-for-mlp", action="store_true", default=False)
     # distributed
     parser.add_argument("--local_rank", type=int, default=-1)
     parser.add_argument("--dist-backend", type=str, default="")
@@ -1838,6 +1847,25 @@ def run():
         # are transferred lazily in parallel_forward.
         dlrm.bot_l = dlrm.bot_l.to(device)
         dlrm.top_l = dlrm.top_l.to(device)
+
+    if args.use_torch2trt_for_mlp:
+        if torch2trt and use_gpu and args.inference_only and args.quantize_mlp_with_bit == 32:
+            bot_l_sample_input = torch.ones([1, ln_bot[0]], dtype=torch.float32).cuda()
+            top_l_sample_input = torch.ones([1, ln_top[0]], dtype=torch.float32).cuda()
+            dlrm.bot_l = torch2trt.torch2trt(dlrm.bot_l, (bot_l_sample_input,))
+            dlrm.top_l = torch2trt.torch2trt(dlrm.top_l, (top_l_sample_input,))
+        elif torch2trt is None:
+            sys.exit("\ntorch2trt module failed to import.\n\n" + torch2trt_import_error_msg)
+        else:
+            error_msg = "ERROR: When --use-torch2trt-for-mlp is enabled, "
+            if not use_gpu:
+                error_msg += "--use-gpu must be enabled, "
+            if not args.inference_only:
+                error_msg += "--inference-only must be enabled, "
+            if args.quantize_mlp_with_bit != 32:
+                error_msg += "--quantize-mlp-with-bit must be disabled. "
+            error_msg = error_msg[:-2] + "."
+            sys.exit(error_msg)
 
     # distribute data parallel mlps
     if ext_dist.my_size > 1:
