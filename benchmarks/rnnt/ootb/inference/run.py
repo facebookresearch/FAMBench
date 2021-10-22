@@ -19,9 +19,16 @@ import subprocess
 
 import os
 from pathlib import Path
+import sys
 
 MLPERF_CONF = Path(os.path.dirname(os.path.realpath(__file__))) / "../../mlperf.conf"
 MLPERF_CONF = MLPERF_CONF.resolve()
+
+# FB5 Logger
+p = Path(__file__).parent.resolve() / "../../../../fb5logging"
+sys.path.append(os.fspath(p))
+from fb5logger import FB5Logger
+import loggerconstants
 
 
 def get_args():
@@ -37,6 +44,9 @@ def get_args():
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--perf_count", type=int, default=None)
     parser.add_argument("--log_dir", required=True)
+    # FB5 Logging
+    parser.add_argument("--fb5logger", type=str, default=None)
+    parser.add_argument("--fb5config", type=str, default="small")
     args = parser.parse_args()
     return args
 
@@ -50,6 +60,10 @@ scenario_map = {
 
 def main():
     args = get_args()
+
+    if args.fb5logger is not None:
+        fb5logger = FB5Logger(args.fb5logger)
+        fb5logger.header("RNN-T", "OOTB", "infer", args.fb5config, score_metric=loggerconstants.EXPS)
 
     if args.backend == "pytorch":
         from pytorch_SUT import PytorchSUT
@@ -77,7 +91,12 @@ def main():
     log_settings.log_output = log_output_settings
 
     print("Running Loadgen test...")
+    if args.fb5logger is not None:
+        fb5logger.run_start()
     lg.StartTestWithLogSettings(sut.sut, sut.qsl.qsl, settings, log_settings)
+    if args.fb5logger is not None:
+        nbatches = sut.qsl.count
+        fb5logger.run_stop(nbatches, 1)
 
     if args.accuracy:
         cmd = f"python3 accuracy_eval.py --log_dir {log_path} --dataset_dir {args.dataset_dir} --manifest {args.manifest}"
