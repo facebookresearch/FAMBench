@@ -664,10 +664,9 @@ class DLRM_Net(nn.Module):
             self.use_fbgemm_gpu = use_fbgemm_gpu
             self.fbgemm_gpu_codegen_pref = fbgemm_gpu_codegen_pref
             self.requires_grad = not inference_only
-            self.ndevices = ndevices
+            self.ndevices_available = ndevices
+            self.ndevices_in_use = ndevices
             self.output_d = 0
-            self.parallel_model_batch_size = -1
-            self.parallel_model_is_not_prepared = True
             self.add_new_weights_to_params = False
             self.arch_interaction_op = arch_interaction_op
             self.arch_interaction_itself = arch_interaction_itself
@@ -778,7 +777,6 @@ class DLRM_Net(nn.Module):
             )
             self.add_new_weights_to_params = True
         self.interact_features_l = [self.nn_module_wrapper() for _ in range(ndevices)]
-        self.parallel_model_is_not_prepared = False
 
     # nn_module_wrapper is used to call functions concurrently across multi-gpus, using parallel_apply,
     # which requires an nn.Module subclass.
@@ -920,7 +918,7 @@ class DLRM_Net(nn.Module):
         if ext_dist.my_size > 1:
             # multi-node multi-device run
             return self.distributed_forward(dense_x, lS_o, lS_i)
-        elif self.ndevices <= 1:
+        elif self.ndevices_available <= 1:
             # single device run
             return self.sequential_forward(dense_x, lS_o, lS_i)
         else:
@@ -1017,15 +1015,12 @@ class DLRM_Net(nn.Module):
         ### prepare model (overwrite) ###
         # WARNING: # of devices must be >= batch size in parallel_forward call
         batch_size = dense_x.size()[0]
-        ndevices = min(self.ndevices, batch_size, self.ntables)
+        ndevices = min(self.ndevices_available, batch_size, self.ntables)
         device_ids = range(ndevices)
         # WARNING: must redistribute the model if mini-batch size changes(this is common
         # for last mini-batch, when # of elements in the dataset/batch size is not even
-        if self.parallel_model_batch_size != batch_size:
-            self.parallel_model_batch_size = batch_size
-            self.parallel_model_is_not_prepared = True
-
-        if self.parallel_model_is_not_prepared:
+        if self.ndevices_in_use != ndevices:
+            self.ndevices_in_use = ndevices
             self.prepare_parallel_model(ndevices)
         elif self.sync_dense_params:
             # When training, replicate the new/updated mlp weights each iteration.
@@ -1829,7 +1824,7 @@ def run():
     # running dlrm_s_pytorch.py with --dist-backend=nccl --use-gpu, each process
     # will run in single-gpu mode, resulting in 8 gpus total running distributed
     # training or distributed inference if --inference-only is enabled.
-    if dlrm.ndevices <= 1:
+    if dlrm.ndevices_available <= 1:
         if use_fbgemm_gpu:
             dlrm.fbgemm_emb_l = nn.ModuleList(
                 [
@@ -1933,6 +1928,10 @@ def run():
             args.lr_num_decay_steps,
         )
 
+    # Guarantee GPU setup has completed before training or inference starts.
+    if use_gpu:
+        torch.cuda.synchronize()
+
     ### main loop ###
 
     # training or inference
@@ -1958,7 +1957,7 @@ def run():
     if not (args.load_model == ""):
         print("Loading saved model {}".format(args.load_model))
         if use_gpu:
-            if dlrm.ndevices > 1:
+            if dlrm.ndevices_available > 1:
                 # NOTE: when targeting inference on multiple GPUs,
                 # load the model as is on CPU or GPU, with the move
                 # to multiple GPUs to be done in parallel_forward
@@ -2147,7 +2146,7 @@ def run():
                     with record_function("DLRM backward"):
                         # Update optimizer parameters to train weights instantiated lazily in
                         # the parallel_forward call.
-                        if dlrm.ndevices > 1 and dlrm.add_new_weights_to_params:
+                        if dlrm.ndevices_available > 1 and dlrm.add_new_weights_to_params:
 
                             # Pop any prior extra parameters. Priors may exist because
                             # self.parallel_model_is_not_prepared is set back to True
