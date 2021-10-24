@@ -124,6 +124,13 @@ except (ImportError, OSError):
     apex_import_error_msg = traceback.format_exc()
     apex = None
 
+try:
+    import torch2trt
+    from torch2trt import torch2trt
+except (ImportError, OSError):
+    torch2trt_import_error_msg = traceback.format_exc()
+    torch2trt = None
+
 # mixed-dimension trick
 from tricks.md_embedding_bag import PrEmbeddingBag, md_solver
 
@@ -657,14 +664,13 @@ class DLRM_Net(nn.Module):
             self.use_fbgemm_gpu = use_fbgemm_gpu
             self.fbgemm_gpu_codegen_pref = fbgemm_gpu_codegen_pref
             self.requires_grad = not inference_only
-            self.ndevices = ndevices
+            self.ndevices_available = ndevices
+            self.ndevices_in_use = ndevices
             self.output_d = 0
-            self.parallel_model_batch_size = -1
-            self.parallel_model_is_not_prepared = True
             self.add_new_weights_to_params = False
             self.arch_interaction_op = arch_interaction_op
             self.arch_interaction_itself = arch_interaction_itself
-            self.sync_dense_params = sync_dense_params
+            self.sync_dense_params = sync_dense_params and not inference_only
             self.loss_threshold = loss_threshold
             self.loss_function = loss_function
             self.learning_rate = learning_rate
@@ -731,6 +737,46 @@ class DLRM_Net(nn.Module):
                 sys.exit(
                     "ERROR: --loss-function=" + self.loss_function + " is not supported"
                 )
+
+    def prepare_parallel_model(self, ndevices):
+        device_ids = range(ndevices)
+        # replicate mlp (data parallelism)
+        self.bot_l_replicas = replicate(self.bot_l, device_ids)
+        self.top_l_replicas = replicate(self.top_l, device_ids)
+
+        # distribute embeddings (model parallelism)
+        if self.weighted_pooling is not None:
+            for k, w in enumerate(self.v_W_l):
+                self.v_W_l[k] = Parameter(
+                    w.to(torch.device("cuda:" + str(k % ndevices)))
+                )
+        if not self.use_fbgemm_gpu:
+            for k, w in enumerate(self.emb_l):
+                self.emb_l[k] = w.to(torch.device("cuda:" + str(k % ndevices)))
+        else:
+            self.fbgemm_emb_l, self.v_W_l_l = zip(
+                *[
+                    (
+                        fbgemm_gpu_emb_bag_wrapper(
+                            torch.device("cuda:" + str(k)),
+                            self.emb_l[k::ndevices]
+                            if self.emb_l
+                            else self.emb_l_q[k::ndevices],
+                            self.m_spa[k::ndevices]
+                            if isinstance(self.m_spa, list)
+                            else self.m_spa,
+                            self.quantize_bits,
+                            self.learning_rate,
+                            self.fbgemm_gpu_codegen_pref,
+                            self.requires_grad,
+                        ),
+                        self.v_W_l[k::ndevices] if self.weighted_pooling else None,
+                    )
+                    for k in range(ndevices)
+                ]
+            )
+            self.add_new_weights_to_params = True
+        self.interact_features_l = [self.nn_module_wrapper() for _ in range(ndevices)]
 
     # nn_module_wrapper is used to call functions concurrently across multi-gpus, using parallel_apply,
     # which requires an nn.Module subclass.
@@ -872,7 +918,7 @@ class DLRM_Net(nn.Module):
         if ext_dist.my_size > 1:
             # multi-node multi-device run
             return self.distributed_forward(dense_x, lS_o, lS_i)
-        elif self.ndevices <= 1:
+        elif self.ndevices_available <= 1:
             # single device run
             return self.sequential_forward(dense_x, lS_o, lS_i)
         else:
@@ -969,54 +1015,18 @@ class DLRM_Net(nn.Module):
         ### prepare model (overwrite) ###
         # WARNING: # of devices must be >= batch size in parallel_forward call
         batch_size = dense_x.size()[0]
-        ndevices = min(self.ndevices, batch_size, self.ntables)
+        ndevices = min(self.ndevices_available, batch_size, self.ntables)
         device_ids = range(ndevices)
         # WARNING: must redistribute the model if mini-batch size changes(this is common
         # for last mini-batch, when # of elements in the dataset/batch size is not even
-        if self.parallel_model_batch_size != batch_size:
-            self.parallel_model_is_not_prepared = True
-
-        if self.parallel_model_is_not_prepared or self.sync_dense_params:
-            # replicate mlp (data parallelism)
+        if self.ndevices_in_use != ndevices:
+            self.ndevices_in_use = ndevices
+            self.prepare_parallel_model(ndevices)
+        elif self.sync_dense_params:
+            # When training, replicate the new/updated mlp weights each iteration.
+            # For inference-only, this code should never run.
             self.bot_l_replicas = replicate(self.bot_l, device_ids)
             self.top_l_replicas = replicate(self.top_l, device_ids)
-            self.parallel_model_batch_size = batch_size
-
-        if self.parallel_model_is_not_prepared:
-            # distribute embeddings (model parallelism)
-            if self.weighted_pooling is not None:
-                for k, w in enumerate(self.v_W_l):
-                    self.v_W_l[k] = Parameter(
-                        w.to(torch.device("cuda:" + str(k % ndevices)))
-                    )
-            if not self.use_fbgemm_gpu:
-                for k, w in enumerate(self.emb_l):
-                    self.emb_l[k] = w.to(torch.device("cuda:" + str(k % ndevices)))
-            else:
-                self.fbgemm_emb_l, self.v_W_l_l = zip(
-                    *[
-                        (
-                            fbgemm_gpu_emb_bag_wrapper(
-                                torch.device("cuda:" + str(k)),
-                                self.emb_l[k::ndevices]
-                                if self.emb_l
-                                else self.emb_l_q[k::ndevices],
-                                self.m_spa[k::ndevices]
-                                if isinstance(self.m_spa, list)
-                                else self.m_spa,
-                                self.quantize_bits,
-                                self.learning_rate,
-                                self.fbgemm_gpu_codegen_pref,
-                                self.requires_grad,
-                            ),
-                            self.v_W_l[k::ndevices] if self.weighted_pooling else None,
-                        )
-                        for k in range(ndevices)
-                    ]
-                )
-                self.add_new_weights_to_params = True
-            self.interact_features_l = [self.nn_module_wrapper() for _ in range(ndevices)]
-            self.parallel_model_is_not_prepared = False
 
         ### prepare input (overwrite) ###
         # scatter dense features (data parallelism)
@@ -1387,6 +1397,8 @@ def run():
         choices=["Split", "IntN"],
         default="Split",
     )
+    # torch2trt
+    parser.add_argument("--use-torch2trt-for-mlp", action="store_true", default=False)
     # distributed
     parser.add_argument("--local_rank", type=int, default=-1)
     parser.add_argument("--dist-backend", type=str, default="")
@@ -1812,7 +1824,7 @@ def run():
     # running dlrm_s_pytorch.py with --dist-backend=nccl --use-gpu, each process
     # will run in single-gpu mode, resulting in 8 gpus total running distributed
     # training or distributed inference if --inference-only is enabled.
-    if dlrm.ndevices <= 1:
+    if dlrm.ndevices_available <= 1:
         if use_fbgemm_gpu:
             dlrm.fbgemm_emb_l = nn.ModuleList(
                 [
@@ -1834,10 +1846,28 @@ def run():
                     dlrm.v_W_l[k] = w.cuda()
     else:
         # Handing Multi-gpu mode
-        # bot_l and top_l are transferred here. Embedding tables
-        # are transferred lazily in parallel_forward.
         dlrm.bot_l = dlrm.bot_l.to(device)
         dlrm.top_l = dlrm.top_l.to(device)
+        dlrm.prepare_parallel_model(ndevices)
+
+    if args.use_torch2trt_for_mlp:
+        if torch2trt and use_gpu and args.inference_only and args.quantize_mlp_with_bit == 32:
+            bot_l_sample_input = torch.ones([1, ln_bot[0]], dtype=torch.float32).cuda()
+            top_l_sample_input = torch.ones([1, ln_top[0]], dtype=torch.float32).cuda()
+            dlrm.bot_l = torch2trt.torch2trt(dlrm.bot_l, (bot_l_sample_input,))
+            dlrm.top_l = torch2trt.torch2trt(dlrm.top_l, (top_l_sample_input,))
+        elif torch2trt is None:
+            sys.exit("\ntorch2trt module failed to import.\n\n" + torch2trt_import_error_msg)
+        else:
+            error_msg = "ERROR: When --use-torch2trt-for-mlp is enabled, "
+            if not use_gpu:
+                error_msg += "--use-gpu must be enabled, "
+            if not args.inference_only:
+                error_msg += "--inference-only must be enabled, "
+            if args.quantize_mlp_with_bit != 32:
+                error_msg += "--quantize-mlp-with-bit must be disabled. "
+            error_msg = error_msg[:-2] + "."
+            sys.exit(error_msg)
 
     # distribute data parallel mlps
     if ext_dist.my_size > 1:
@@ -1898,6 +1928,10 @@ def run():
             args.lr_num_decay_steps,
         )
 
+    # Guarantee GPU setup has completed before training or inference starts.
+    if use_gpu:
+        torch.cuda.synchronize()
+
     ### main loop ###
 
     # training or inference
@@ -1923,7 +1957,7 @@ def run():
     if not (args.load_model == ""):
         print("Loading saved model {}".format(args.load_model))
         if use_gpu:
-            if dlrm.ndevices > 1:
+            if dlrm.ndevices_available > 1:
                 # NOTE: when targeting inference on multiple GPUs,
                 # load the model as is on CPU or GPU, with the move
                 # to multiple GPUs to be done in parallel_forward
@@ -2112,7 +2146,7 @@ def run():
                     with record_function("DLRM backward"):
                         # Update optimizer parameters to train weights instantiated lazily in
                         # the parallel_forward call.
-                        if dlrm.ndevices > 1 and dlrm.add_new_weights_to_params:
+                        if dlrm.ndevices_available > 1 and dlrm.add_new_weights_to_params:
 
                             # Pop any prior extra parameters. Priors may exist because
                             # self.parallel_model_is_not_prepared is set back to True
