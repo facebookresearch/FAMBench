@@ -17,7 +17,7 @@ import pytorch_linear as klinear
 # FB5 Logger
 p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
-from fb5logger import FB5Logger
+from fb5logger import get_fb5logger
 import loggerconstants
 
 if __name__ == "__main__":
@@ -54,16 +54,14 @@ if __name__ == "__main__":
     print("Steps = ", args.steps, " warmups = ", args.warmups)
 
     #fb5 logging header
-    if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
+    fb5logger = get_fb5logger(args.fb5logger)
 
     if args.kernel == 'emb':
         print("with emb dataset ", args.dataset)
         global_bytes = 0
         global_elap = 0
-        if args.fb5logger is not None:
-            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.GBPS)
-            fb5logger.run_start()
+        fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.GBPS)
+        fb5logger.run_start()
         if args.dataset == 'A':
             run_dataset = dataset.emb_A
         elif args.dataset == 'B':
@@ -82,16 +80,14 @@ if __name__ == "__main__":
             total_bytes /= 1.0e6
             global_bytes += total_bytes
             global_elap += elap
-        if args.fb5logger is not None:
-            extra_metadata={"GB/s": global_bytes / global_elap / 1.0e3, "ELAP": global_elap, "BYTES": global_bytes}
-            fb5logger.run_stop(args.steps, batch, extra_metadata=extra_metadata)
+        extra_metadata={"GB/s": global_bytes / global_elap / 1.0e3, "ELAP": global_elap, "BYTES": global_bytes}
+        fb5logger.run_stop(args.steps, batch, extra_metadata=extra_metadata)
     else:
         print("with linear dataset ", args.dataset, ", Data type: ", args.dtype)
         global_flops = 0
         global_elap = 0
-        if args.fb5logger is not None:
-            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
-            fb5logger.run_start()
+        fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
+        fb5logger.run_start()
         if args.dataset == 'A':
             run_dataset = dataset.mlp_A
         elif args.dataset == 'small':
@@ -117,6 +113,5 @@ if __name__ == "__main__":
             flops *= 6
             global_flops += flops
             global_elap += elap
-        if args.fb5logger is not None:
-            extra_metadata={"TF/s": global_flops / global_elap / 1.0e12, "ELAP": global_elap, "FLOPS": global_flops}
-            fb5logger.run_stop(args.steps, batch_size, extra_metadata=extra_metadata)
+        extra_metadata={"TF/s": global_flops / global_elap / 1.0e12, "ELAP": global_elap, "FLOPS": global_flops}
+        fb5logger.run_stop(args.steps, batch_size, extra_metadata=extra_metadata)

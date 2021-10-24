@@ -1,9 +1,31 @@
-import logging
 import os
 import sys
 import json
 import time
 import loggerconstants as constants
+
+def get_fb5logger(log_file_path = None):
+    t = Nop() if log_file_path is None else FB5Logger
+    return t(log_file_path)
+
+class Nop:
+    def __init__(self):
+        pass
+
+    def __getattr__(self, attr):
+        return Nop()
+
+    def __call__(self, *args, **kwargs):
+        return Nop()
+
+    def __enter__(self):
+        return Nop()
+
+    def __exit__(self):
+        pass
+
+    def __repr__(self):
+        return "Logger is disabled. fb5logger.get_fb5logger was not passed a file path."
 
 # TODO: change name to FAMLogger
 class FB5Logger():
@@ -30,19 +52,19 @@ class FB5Logger():
 
     def log_line(self, log_info : dict, key : str):
         """
-        Log a line with a dict of arbitrary form for the data and a string key. 
+        Log a line with a dict of arbitrary form for the data and a string key.
         """
         log_info['key'] = key
         self._dump_json(log_info)
 
     def header(self, benchmark_name, implementation_name, mode, config_name, score_metric=constants.EXPS):
         """
-        Required for every log. Describes what the benchmark is. 
+        Required for every log. Describes what the benchmark is.
         """
         header_dict = {
-            "benchmark": benchmark_name, 
-            "implementation": implementation_name, 
-            "mode": mode, 
+            "benchmark": benchmark_name,
+            "implementation": implementation_name,
+            "mode": mode,
             "config": config_name,
             "score_metric": score_metric}
         self.log_line(header_dict, constants.HEADER)
@@ -59,7 +81,7 @@ class FB5Logger():
     # TODO: remove batch info args and migrate to record_batch_info
     def run_stop(self, num_batches, batch_size, extra_metadata = None, time_ms = None):
         """
-        Records end of logging and any required data. 
+        Records end of logging and any required data.
         """
         if(time_ms is None):
             time_ms = self._time_ms()
@@ -73,7 +95,7 @@ class FB5Logger():
         self.log_line(batch_size_dict, constants.BATCH_SIZE)
         nbatches_dict = {"num_batches": num_batches}
         self.log_line(nbatches_dict, constants.NUM_BATCHES)
-    
+
     def batch_start(self, time_ms = None):
         """
         Marks beginning of the model processing a batch

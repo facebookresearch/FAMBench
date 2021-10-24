@@ -139,7 +139,7 @@ import pathlib
 from os import fspath
 p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
-from fb5logger import FB5Logger
+from fb5logger import get_fb5logger
 import loggerconstants
 
 # quotient-remainder trick
@@ -1456,12 +1456,11 @@ def run():
             key=mlperf_logger.constants.INIT_START, log_all_ranks=True
         )
 
-    if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
-        if args.inference_only:
-            fb5logger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.EXPS)
-        else:
-            fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
+    fb5logger = get_fb5logger(args.fb5logger)
+    if args.inference_only:
+        fb5logger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.EXPS)
+    else:
+        fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
 
     if args.weighted_pooling is not None:
         if args.qr_flag:
@@ -2050,8 +2049,7 @@ def run():
         args.enable_profiling, use_cuda=use_gpu, record_shapes=True
     ) as prof:
 
-        if args.fb5logger is not None:
-            fb5logger.run_start()
+        fb5logger.run_start()
 
         if not args.inference_only:
             k = 0
@@ -2383,8 +2381,7 @@ def run():
                 use_gpu,
             )
 
-    if args.fb5logger is not None:
-        fb5logger.run_stop(nbatches, args.mini_batch_size)
+    fb5logger.run_stop(nbatches, args.mini_batch_size)
 
     # profiling
     if args.enable_profiling:
