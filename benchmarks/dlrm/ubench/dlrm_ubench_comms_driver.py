@@ -18,7 +18,7 @@ def main():
     args = parser.parse_args()
 
     comms_abs_path = str(
-        pathlib.Path(__file__).parents[2].resolve() / "param/train/comms/pt/comms.py"
+        pathlib.Path(__file__).absolute().parents[3].resolve() / "param/train/comms/pt/comms.py"
     )
 
     master_ip_l = ["localhost"]
