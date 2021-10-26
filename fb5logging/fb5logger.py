@@ -26,7 +26,8 @@ class FB5Logger():
         """
         Naive implementation of current time.
         """
-        return time.time_ns() * 1e-6
+        return time.time() * 1e3
+        # return time.time_ns() * 1e-6
 
     def log_line(self, log_info : dict, key : str):
         """

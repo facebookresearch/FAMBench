@@ -11,7 +11,7 @@ p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
 from fb5logger import FB5Logger
 
-from fairseq.models.roberta import XLMRModel
+# from fairseq.models.roberta import XLMRModel
 
 def time_ms(use_gpu):
     """
@@ -51,8 +51,7 @@ def evaluate_simple(model, x_l, use_gpu=False, famlogger=None):
         if use_gpu:
             x = x.cuda()
         y_pred = model(x)
-        torch.cuda.synchronize()
-        famlogger.batch_stop()
+        famlogger.batch_stop(time_ms=time_ms(args.use_gpu))
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -86,15 +85,16 @@ def run():
     xlmr = get_model()
     if args.inference_only:
         xlmr.eval()
+        xlmr.half()
     
     # use gpu
     if args.use_gpu:
         xlmr = xlmr.to(device)
 
     if args.inference_only:
-        x_l = [generate_ml_sample(get_y_true=False) for _ in range(args.num_batches)]
+        x_l = [generate_ml_sample(batchsize=64, seq_length=64, get_y_true=False) for _ in range(args.num_batches)]
     else:
-        x_l, y_true_l = zip(*[generate_ml_sample() for _ in range(args.num_batches)])
+        x_l, y_true_l = zip(*[generate_ml_sample(batchsize=32, seq_length=64) for _ in range(args.num_batches)])
 
     # benchmark!
     if args.logfile is not None:
@@ -112,12 +112,12 @@ def run():
                 x = x.to(device)
                 y_true = y_true.to(device)
             y_pred = xlmr(x)
-            loss = F.cross_entropy(y_pred[0], y_true)
+            y_true = y_true.long()
+            loss = F.cross_entropy(y_pred[0], y_true[:,0,:])
             loss.backward()
             optimizer.step()
             optimizer.zero_grad() 
-            torch.cuda.synchronize()      
-            famlogger.batch_stop()
+            famlogger.batch_stop(time_ms=time_ms(args.use_gpu))
 
     if args.logfile is not None:
         famlogger.run_stop(0, 0, time_ms=time_ms(args.use_gpu))
