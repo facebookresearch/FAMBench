@@ -1,6 +1,4 @@
 #!/bin/bash
-echo "=== Launching FB5 ==="
-
 printUsage() {
   echo
   echo "Usage: $(basename "$0") <options>"
@@ -8,7 +6,7 @@ printUsage() {
   echo "Options:"
   echo "  -h                      Prints this help."
   echo "  -l <dir to save log>    Saves FB5 Log to specified directory in first argument."
-  echo "  -c <config file>        Runs the command in the config file instead of the default config."
+  echo "  -c <size>               Size in bytes"
   echo
   return 0
 }
@@ -37,7 +35,7 @@ do
   esac
 done
 
-size_name=size
+size_name=${size}
 if [ $size -eq 2200 ]; then
   size_name=small
 elif [ $size -eq 9944 ]; then
@@ -57,6 +55,6 @@ echo "Size: ${size}"
 echo "Saving FB5 Logger File: ${LOGGER_FILE}"
 echo "Running Command:"
 
-(set -x; python "${benchmark}/${implementation}/dlrm_ubench_comms_driver.py" --fb5logger=${LOGGER_FILE} --collective=all_reduce --size=${size} 2>&1)
+(set -x; python3 "${benchmark}/${implementation}/dlrm_ubench_comms_driver.py" --fb5logger=${LOGGER_FILE} --collective=all_reduce --size=${size} 2>&1)
 
 echo "=== Completed Run ==="
