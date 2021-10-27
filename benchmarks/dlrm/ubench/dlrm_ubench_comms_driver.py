@@ -6,71 +6,97 @@ import subprocess
 import sys
 from itertools import product
 
+from os import fspath
+# param ubenches
+p = pathlib.Path(__file__).parent.resolve() / "../../../param/train/compute/pt"
+sys.path.append(fspath(p))
+import dataset
+import pytorch_gemm as kgemm
+import pytorch_emb as kemb
+import pytorch_linear as klinear
+
+# FB5 Logger
+p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+sys.path.append(fspath(p))
+from fb5logger import FB5Logger
+import loggerconstants
 
 def main():
     parser = argparse.ArgumentParser(description="comms.py driver")
+    parser.add_argument(
+        "--size",
+        type=str,
+        default="small",
+    )
     parser.add_argument(
         "--backend",
         type=str,
         default=("nccl"),
         choices=["nccl", "gloo", "mpi", "ucc", "xla"],
+    )   
+    parser.add_argument(
+        "--collective",
+        type=str,
+        default=("all_to_all"),
+        choices=["all_to_all", "all_reduce"],
     )
+    parser.add_argument("--fb5logger", type=str, default=None)
     args = parser.parse_args()
 
-    comms_abs_path = str(
-        pathlib.Path(__file__).absolute().parents[3].resolve() / "param/train/comms/pt/comms.py"
-    )
+    if args.size not in ["small", "medium", "large"] and not (args.size.isdigit() and args.size > 0):
+        sys.exit("The --size argument provided is not a valid positive integer.")    
 
-    master_ip_l = ["localhost"]
-    num_processes_l = [1]
-    processes_per_node_l = [8]
-    num_compute_iters_l = [100]
-    mm_dim_l = [1000]
-    collective_config_l = itertools.chain(
-        product(["all_reduce"], [2200, 4000, 9944, 22374, 16000, 32000]),
-        product(["all_to_all"], [134000000, 244000000, 544000000]),
-    )
+    lookup = {
+        "small": 2200 if args.collective=="all_reduce" else 134000000, 
+        "medium": 9944 if args.collective=="all_reduce" else 244000000, 
+        "large": 22372 if args.collective=="all_reduce" else 544000000,
+        str(2200) : "small" if args.collective=="all_reduce" else 2200,
+        str(9944) : "medium" if args.collective=="all_reduce" else 9944,
+        str(22372) : "large" if args.collective=="all_reduce" else 22372,
+        str(134000000) : "small" if args.collective=="all_to_all" else 134000000,
+        str(244000000) : "medium" if args.collective=="all_to_all" else 244000000,
+        str(544000000) : "large" if args.collective=="all_to_all" else 544000000,
+    }
+    (x, y) = (args.size, lookup.get(args.size, args.size))
+    (size, name) = (x, y) if args.size.isdigit() else (y, x)
 
-    for (
-        master_ip,
-        num_processes,
-        processes_per_node,
-        num_compute_iters,
-        mm_dim,
-        collective_config,
-    ) in product(
-        master_ip_l,
-        num_processes_l,
-        processes_per_node_l,
-        num_compute_iters_l,
-        mm_dim_l,
-        collective_config_l,
-    ):
-        cmd = f"""
-            mpirun
-            -np 1
-            -N 8
-            --bind-to none {comms_abs_path}
-            --f 2
-            --n 100
-            --master-ip {master_ip}
-            --master-port 22565
-            --collective {collective_config[0]}
-            --b {collective_config[1]}
-            --e {collective_config[1]}
-            --num-compute {num_compute_iters}
-            --mm-dim {mm_dim}
-            --backend {args.backend}
-        """
+    master_ip = "localhost"
+    num_compute_per_collective = 100
+    mm_dim = 1000
+    num_iter = 100
 
-        cmd = cmd.replace("\n", " ")
-        cmd = cmd.replace("  ", "")
-        print("\n")
-        print(cmd)
-        print("\n")
-        cmd = cmd.split()
-        proc = subprocess.run(cmd)
+    cmd = f"""
+        --f 2
+        --n {num_iter}
+        --master-ip {master_ip}
+        --master-port 22565
+        --collective {args.collective}
+        --b {size}
+        --e {size}
+        --num-compute {num_compute_per_collective}
+        --mm-dim {mm_dim}
+        --backend {args.backend}
+    """
+    sys.argv = cmd.replace("\n", " ").replace("  ", "").split()
 
+    print("")
+    comms_abs_dir_path = str(
+        pathlib.Path(__file__).absolute().parents[3].resolve() / "param/train/comms/pt"
+    )    
+    sys.path.append(comms_abs_dir_path)
+    from comms import main as comms_main
+
+    fb5logger = FB5Logger(args.fb5logger)
+    fb5logger.header("DLRM", "UBENCH", "train", "comms_" + args.collective.replace("_","") + "_" + name, score_metric=loggerconstants.GBPS
+
+    fb5logger.run_start()
+
+    comms_main()
+    
+    nbatches = 1
+    mini_batch_size = 100
+    extra_metadata={"GB/s": global_bytes / global_elap / 1.0e3, "ELAP": global_elap, "BYTES": global_bytes} 
+    fb5logger.run_stop(num_iter, num_compute_per_collective, extra_metadata=extra_metadata))
 
 if __name__ == "__main__":
     main()
