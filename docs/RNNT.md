@@ -5,6 +5,8 @@
  - CUDA 11.0
  - Microconda
  - GPU device compatible with CUDA 11.0
+ - sox
+ - libsndfile1
 
 ## Training
 
@@ -89,6 +91,40 @@ pip install pyyaml
 
 ### Finally train with command:
 ```
-gpurun bash rnnt/ootb/train/scripts/train.sh $DATASET_DIR/LibriSpeech rnnt/ootb/train/configs/baseline_v3-1023sp.yaml $RESULT_DIR
+bash rnnt/ootb/train/scripts/train.sh $DATASET_DIR/LibriSpeech rnnt/ootb/train/configs/baseline_v3-1023sp.yaml $RESULT_DIR
 ```
 At this point, you should be able to see training epochs.
+
+## Inference
+
+This document provides the detailed instructions to run inference on a pre-trained model from MLCommons against the Open-Source LibriSpeech dataset. The repository can be found here: https://github.com/mlcommons/inference/tree/master/speech_recognition/rnnt
+
+### Installing dependencies
+
+Using the same conda environment as training:
+```
+conda activate py383
+```
+
+Install MLPerf loadgen and additional packages:
+```
+# Install MLPerf loadgen
+pushd inference/loadgen
+python setup.py install
+popd
+
+# Install dependencies
+pip install toml==0.10.0
+pip install tqdm==4.31.1
+```
+
+Download the pre-trained model:
+```
+wget https://zenodo.org/record/3662521/files/DistributedDataParallel_1576581068.9962234-epoch-100.pt?download=1 -O $RESULT_DIR/rnnt.pt
+```
+
+### Finally run inference with the command:
+```
+python rnnt/ootb/inference/run.py --backend pytorch --dataset_dir $DATASET_DIR/LibriSpeech --manifest $DATASET_DIR/LibriSpeech/librispeech-dev-clean-wav.json --pytorch_config_toml rnnt/ootb/inference/pytorch/configs/rnnt.toml --pytorch_checkpoint $RESULT_DIR/rnnt.pt --scenario Offline --log_dir $RESULT_DIR/Offline_pytorch_rerun
+```
+At this point, wait for inference to finish and produce results.

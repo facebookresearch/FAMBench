@@ -44,9 +44,8 @@ from mlperf import logging
 
 # FB5 Logger
 import pathlib
-from os import fspath
 p = pathlib.Path(__file__).parent.resolve() / "../../../../fb5logging"
-sys.path.append(fspath(p))
+sys.path.append(os.fspath(p))
 from fb5logger import FB5Logger
 import loggerconstants
 
