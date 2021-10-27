@@ -101,7 +101,7 @@ def run():
         famlogger.run_start(time_ms=time_ms(args.use_gpu))
 
     if args.inference_only:
-        evaluate_simple(xlmr, x_l, args.use_gpu, famlogger=famlogger)
+        evaluate_simple(xlmr, x_l, use_gpu=args.use_gpu, famlogger=famlogger)
     else:
         #training loop
         learning_rate = 0.01
