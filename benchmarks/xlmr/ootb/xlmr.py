@@ -51,7 +51,7 @@ def evaluate_simple(model, x_l, use_gpu=False, famlogger=None):
         if use_gpu:
             x = x.cuda()
         y_pred = model(x)
-        famlogger.batch_stop(time_ms=time_ms(args.use_gpu))
+        famlogger.batch_stop(time_ms=time_ms(use_gpu))
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -113,7 +113,7 @@ def run():
                 y_true = y_true.to(device)
             y_pred = xlmr(x)
             y_true = y_true.long()
-            loss = F.cross_entropy(y_pred[0], y_true[:,0,:])
+            loss = F.cross_entropy(y_pred[0], y_true[:,0,:]) # TODO: fix y_true data input hack
             loss.backward()
             optimizer.step()
             optimizer.zero_grad() 
