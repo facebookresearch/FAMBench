@@ -10,9 +10,10 @@ The key things to know:
 - This includes benchmarks (runnable on 1 device, multiple devices, clusters) and microbenchmarks
 
 
-To get starting running the bencmark suite right away on a V100:
+To get starting running the benchmark suite right away on a V100:
 
-    TODO: Instructions here to generate the table.
+    cd proxyworkloads/benchmarks
+    ./run_all.sh
 
 
 ## The Suite
