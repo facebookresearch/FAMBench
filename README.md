@@ -13,7 +13,7 @@ The key things to know:
 To get starting running the benchmark suite right away on a V100:
 
     cd proxyworkloads/benchmarks
-    ./run_all.sh
+    ./run_all_test.sh
 
 
 ## The Suite
