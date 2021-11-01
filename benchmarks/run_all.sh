@@ -14,6 +14,7 @@
 # XLMR OOTB
 ./run_xlmr_ootb_infer.sh 
 ./run_xlmr_ootb_train.sh
+./run_xlmr_ootb_train_msft.sh
 
 # view options: [raw_view -> pure json, intermediate_view -> nice table]
 # intermediate view recommended for filling out table
