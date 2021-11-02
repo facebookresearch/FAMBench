@@ -8,7 +8,7 @@ config=fb-1dev-long
 LOG_DIR=results
 LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_${config}.log"
 nbatches=100
-batchsize=32
+batchsize=16
 seqlength=256
 vocabsize=250000
 
