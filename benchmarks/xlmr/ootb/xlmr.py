@@ -32,7 +32,7 @@ def get_model():
     # TODO use torchscript? jit/script this model?
     return fairseq_xlmr_large.model
 
-def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=1000, get_y_true=True):
+def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=250000, get_y_true=True):
     shape = (batchsize, seq_length)
     x = torch.rand(shape) * vocab_size
     x = x.int()
@@ -62,6 +62,9 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument("--famconfig", type=str, default="tiny")
     parser.add_argument("--use-gpu", action="store_true", default=False)
     parser.add_argument("--num-batches", type=int, default=5)
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--sequence-length", type=int, default=64)
+    parser.add_argument("--vocab-size", type=int, default=250000)
     return parser
 
 def run():
@@ -91,15 +94,17 @@ def run():
     if args.use_gpu:
         xlmr = xlmr.to(device)
 
+    print("generating data")
     if args.inference_only:
-        x_l = [generate_ml_sample(batchsize=64, seq_length=64, get_y_true=False) for _ in range(args.num_batches)]
+        x_l = [generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size, get_y_true=False) for _ in range(args.num_batches)]
     else:
-        x_l, y_true_l = zip(*[generate_ml_sample(batchsize=32, seq_length=64) for _ in range(args.num_batches)])
+        x_l, y_true_l = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.num_batches)])
+    print("data generated")
 
     # benchmark!
     if args.logfile is not None:
         famlogger.run_start(time_ms=time_ms(args.use_gpu))
-
+    
     if args.inference_only:
         evaluate_simple(xlmr, x_l, use_gpu=args.use_gpu, famlogger=famlogger)
     else:
