@@ -79,3 +79,31 @@ scikit-learn
 
 numpy
 
+## Optional
+### fbgemm_gpu
+Install additional requirements:
+```
+conda install jinja2
+conda install nvidiacub
+```
+Set export paths:
+```
+export CUDACXX=/usr/local/cuda/bin/nvcc
+export CUB_DIR=${CUB_DIR}
+```
+Clone repo:
+```
+git clone https://github.com/pytorch/FBGEMM.git
+cd FBGEMM/fbgemm_gpu
+git submodule sync
+git submodule update --init --recursive    
+```
+Run installer:
+```
+python setup.py build develop
+```
+Copy shared object file
+```
+cp fbgemm_gpu_py.so /<proxyworkloads root>/benchmarks
+```
+Enable fbgemm_gpu by adding command line argument: --use-fbgemm-gpu
