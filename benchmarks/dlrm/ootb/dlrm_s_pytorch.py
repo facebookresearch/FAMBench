@@ -1175,10 +1175,17 @@ def inference(
         scores = []
         targets = []
 
+    if args.fb5logger is not None:
+        fb5logger = FB5Logger(args.fb5logger)
+        fb5logger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.EXPS)
+
     for i, testBatch in enumerate(test_ld):
         # early exit if nbatches was set by the user and was exceeded
         if nbatches > 0 and i >= nbatches:
             break
+
+        if i == args.warmup_steps and args.fb5logger is not None:
+            fb5logger.run_start()
 
         X_test, lS_o_test, lS_i_test, T_test, W_test, CBPP_test = unpack_batch(
             testBatch
@@ -1223,6 +1230,9 @@ def inference(
 
                 test_accu += A_test
                 test_samp += mbs_test
+
+    if args.fb5logger is not None:
+        fb5logger.run_stop(nbatches - args.warmup_steps, args.mini_batch_size)
 
     if args.mlperf_logging:
         with record_function("DLRM mlperf sklearn metrics compute"):
@@ -1433,6 +1443,7 @@ def run():
     parser.add_argument("--lr-num-decay-steps", type=int, default=0)
 
     parser.add_argument("--precache-ml-data", type=int, nargs='?', default=None, const=sys.maxsize)
+    parser.add_argument("--warmup-steps", type=int, default=0)
     # FB5 Logging
     parser.add_argument("--fb5logger", type=str, default=None)
     parser.add_argument("--fb5config", type=str, default="tiny")
@@ -1455,13 +1466,6 @@ def run():
         mlperf_logger.log_start(
             key=mlperf_logger.constants.INIT_START, log_all_ranks=True
         )
-
-    if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
-        if args.inference_only:
-            fb5logger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.EXPS)
-        else:
-            fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
 
     if args.weighted_pooling is not None:
         if args.qr_flag:
@@ -1587,6 +1591,8 @@ def run():
         )
         nbatches = args.num_batches if args.num_batches > 0 else len(train_ld)
         nbatches_test = len(test_ld)
+
+    assert args.num_batches > args.warmup_steps, (f"Change --warmup-steps={args.warmup_steps} to be lower than --num-batches={args.num_batches}.")
 
     args.ln_emb = ln_emb.tolist()
     if args.mlperf_logging:
@@ -2050,10 +2056,12 @@ def run():
         args.enable_profiling, use_cuda=use_gpu, record_shapes=True
     ) as prof:
 
-        if args.fb5logger is not None:
-            fb5logger.run_start()
-
         if not args.inference_only:
+
+            if args.fb5logger is not None:
+                fb5logger = FB5Logger(args.fb5logger)
+                fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
+            
             k = 0
             while k < args.nepochs:
                 if args.mlperf_logging:
@@ -2086,6 +2094,9 @@ def run():
 
                     if j < skip_upto_batch:
                         continue
+
+                    if k == 0 and j == args.warmup_steps and args.fb5logger is not None:
+                        fb5logger.run_start()
 
                     X, lS_o, lS_i, T, W, CBPP = unpack_batch(inputBatch)
 
@@ -2350,7 +2361,9 @@ def run():
                                     },
                                 )
                             break
-
+                if k == 0 and args.fb5logger is not None:
+                    fb5logger.run_stop(nbatches - args.warmup_steps, args.mini_batch_size)
+                    
                 if args.mlperf_logging:
                     mlperf_logger.barrier()
                     mlperf_logger.log_end(
@@ -2382,9 +2395,6 @@ def run():
                 device,
                 use_gpu,
             )
-
-    if args.fb5logger is not None:
-        fb5logger.run_stop(nbatches, args.mini_batch_size)
 
     # profiling
     if args.enable_profiling:
