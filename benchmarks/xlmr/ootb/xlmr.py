@@ -11,7 +11,7 @@ p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
 from fb5logger import FB5Logger
 
-from fairseq.models.roberta import XLMRModel
+# from fairseq.models.roberta import XLMRModel
 
 def time_ms(use_gpu):
     """
@@ -32,7 +32,7 @@ def get_model():
     # TODO use torchscript? jit/script this model?
     return fairseq_xlmr_large.model
 
-def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=1000, get_y_true=True):
+def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=250000, get_y_true=True):
     shape = (batchsize, seq_length)
     x = torch.rand(shape) * vocab_size
     x = x.int()
@@ -51,8 +51,7 @@ def evaluate_simple(model, x_l, use_gpu=False, famlogger=None):
         if use_gpu:
             x = x.cuda()
         y_pred = model(x)
-        torch.cuda.synchronize()
-        famlogger.batch_stop()
+        famlogger.batch_stop(time_ms=time_ms(use_gpu))
 
 def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
@@ -63,6 +62,9 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument("--famconfig", type=str, default="tiny")
     parser.add_argument("--use-gpu", action="store_true", default=False)
     parser.add_argument("--num-batches", type=int, default=5)
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--sequence-length", type=int, default=64)
+    parser.add_argument("--vocab-size", type=int, default=250000)
     return parser
 
 def run():
@@ -86,22 +88,25 @@ def run():
     xlmr = get_model()
     if args.inference_only:
         xlmr.eval()
+        xlmr.half()
     
     # use gpu
     if args.use_gpu:
         xlmr = xlmr.to(device)
 
+    print("generating data")
     if args.inference_only:
-        x_l = [generate_ml_sample(get_y_true=False) for _ in range(args.num_batches)]
+        x_l = [generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size, get_y_true=False) for _ in range(args.num_batches)]
     else:
-        x_l, y_true_l = zip(*[generate_ml_sample() for _ in range(args.num_batches)])
+        x_l, y_true_l = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.num_batches)])
+    print("data generated")
 
     # benchmark!
     if args.logfile is not None:
         famlogger.run_start(time_ms=time_ms(args.use_gpu))
-
+    
     if args.inference_only:
-        evaluate_simple(xlmr, x_l, args.use_gpu, famlogger=famlogger)
+        evaluate_simple(xlmr, x_l, use_gpu=args.use_gpu, famlogger=famlogger)
     else:
         #training loop
         learning_rate = 0.01
@@ -112,12 +117,12 @@ def run():
                 x = x.to(device)
                 y_true = y_true.to(device)
             y_pred = xlmr(x)
-            loss = F.cross_entropy(y_pred[0], y_true)
+            y_true = y_true.long()
+            loss = F.cross_entropy(y_pred[0], y_true[:,0,:]) # TODO: fix y_true data input hack
             loss.backward()
             optimizer.step()
             optimizer.zero_grad() 
-            torch.cuda.synchronize()      
-            famlogger.batch_stop()
+            famlogger.batch_stop(time_ms=time_ms(args.use_gpu))
 
     if args.logfile is not None:
         famlogger.run_stop(0, 0, time_ms=time_ms(args.use_gpu))

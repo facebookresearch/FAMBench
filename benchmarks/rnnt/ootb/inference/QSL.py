@@ -1,6 +1,8 @@
 import sys
 import os
-sys.path.insert(0, os.path.join(os.getcwd(), "pytorch"))
+from os import fspath
+import pathlib
+sys.path.insert(0, fspath(pathlib.Path(__file__).parent.resolve() / "./pytorch"))
 
 from parts.manifest import Manifest
 from parts.segment import AudioSegment
@@ -51,6 +53,7 @@ class AudioQSL:
     def __del__(self):
         lg.DestroyQSL(self.qsl)
         print("Finished destroying QSL.")
+
 
 # We have no problem fitting all data in memory, so we do that, in
 # order to speed up execution of the benchmark.
