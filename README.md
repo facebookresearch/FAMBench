@@ -18,7 +18,7 @@ To get starting running the benchmark suite right away on a V100:
 
 ## The Suite
 
-This suite captures multiple benchmarks across, multiple devices, across multiple precisions, and includes microbenchmarks. We organize the suite so each benchmark result is identified as:
+This suite captures benchmarks across multiple devices, across multiple precisions, and includes microbenchmarks. We organize the suite so each benchmark result is identified as:
 
     Benchmark = Models + Implementation + Mode + Configuration
 
@@ -34,7 +34,7 @@ This suite contains the following benchmarks:
 
 ### Implementation
 
-Each benchmark comes in 3 different implementations:
+Each benchmark comes in three different implementations:
 - Out Of The Box (OOTB): indicates the performance that is provided by the libraries and frameworks. Code is written like a regular AI engineer / researcher would write the code, not like a systems/hardware specialist would write the code.
 - Optimized: Represents the best possible performance which can be reached; the code is tuned, re-written (and perhaps even mangled) by hardware and software experts
 - Microbenchmarks: benchmarks which look at a specific component of dev, computer or cluster. These are highly unique and specialized in their purpose.
@@ -63,14 +63,14 @@ Running one or more benchmarks on a specific machine or cluster produces a resul
 * = missed latency target
 
 Notice the following in this table:
-- Each row is one Benchmark run a batch size (`Model + Implementation + Mode + Config` at a given batch size). More on batch size in Suite Design.
+- Each row is one Benchmark run with a batch size (`Model + Implementation + Mode + Config` at a given batch size). More on batch size in Suite Design.
 - All rows in the same table are run on the same machine. Benchmarks from different hardware must appear in different result tables.
 - Some results have a `*` denoting that they missed the latency target. More on latency targets in Suite Design.
 - You may report multiple batch sizes for the same benchmark, they appear as different lines in the table.
 
 
 ### Results by System Scale
-We look all the results to understand the broader picture of performance.
+We look at all the results to understand the broader picture of performance.
 
 ** For systems that can't run the full model: ** Microbenchmarks give us a picture into potential performance and early indicators of where to explore more.
 
@@ -78,7 +78,7 @@ We look all the results to understand the broader picture of performance.
 
 ** For multiple device, single node: ** For Training, multidevice configurations give good insight into how single nodes perform within a cluster - this can be combined with microbenchmarks on the cluster to predict overall performance. For inference, this is a great reflection of actual workloads. This has the added advantage of being quick and easy for debugging and experiments.
 
-** For Clusters: ** Running these benchmarks on a cluster gives best indication of performance for Training but does not add additional information for Inference. The downside is, obviously, these runs are more costly to setup and run.
+** For Clusters: ** Running these benchmarks on a cluster gives the best indication of performance for Training but does not add additional information for Inference. The downside is, obviously, these runs are more costly to set up and run.
 
 
 ### How Results are Consumed
@@ -94,10 +94,10 @@ Generally, consuming results is specific to the situation. Different goals will 
 We are very specific about how these benchmarks must be run and optimized in order to maintain our goal: ** improvements to these benchmarks connect directly to improvements in important internal workloads **. Where our methodology may seem arbitrary or cumbersome, it is in service of maintaining the connection to the source.
 
 ### Ownership, Versions & Updates
-Each Benchmark (`Model + Implementation + Mode + Config`) is connected with an actual owner of an actual workload who endorsed the benchmark. The owner is the arbiter of changes, updates, and methodology for the benchmark. It is exceptionally frustrating to see benchmarks change while you are working on them. It sucks, and we version our benchmarks to help with book keeping. Ultimately, our goal here is to reflect the current state of what people care about - unfortunately this means (sometimes too frequently) bumping versions to ensure we are offering the best proxy to the world.
+Each Benchmark (`Model + Implementation + Mode + Config`) is connected with an actual owner of an actual workload who endorsed the benchmark. The owner is the arbiter of changes, updates, and methodology for the benchmark. It is exceptionally frustrating to see benchmarks change while you are working on them. It sucks, and we version our benchmarks to help with bookkeeping. Ultimately, our goal here is to reflect the current state of what people care about - unfortunately this means (sometimes too frequently) bumping versions to ensure we are offering the best proxy to the world.
 
 ### Convergence and Accuracy
-The gold standard in understand the system works is measuring convergence and accuracy of the model in the end-to-end context. Unfortunately, as shown by MLPerf, this is exceptionally costly, burdensome and slow. We do not place an emphasis on convergence and accuracy for the following reasons:
+The gold standard in understanding how the system works is measuring convergence and accuracy of the model in the end-to-end context. Unfortunately, as shown by MLPerf, this is exceptionally costly, burdensome and slow. We do not place an emphasis on convergence and accuracy for the following reasons:
 - We don't allow significant changes to model code (see "Improving the Benchmark Score"), so we don't expect people to be breaking convergence
 - We limit the data types and precisions to ones we understand and are known to be viable
 - We (will) offer the ability to verify correctness (possibly through real data or through statistical analysis on synthetic data)
