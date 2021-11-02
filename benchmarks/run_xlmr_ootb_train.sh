@@ -4,7 +4,7 @@
 benchmark=xlmr
 implementation=ootb
 mode=train
-config=msft-1dev
+config=fb-1dev-short
 LOG_DIR=results
 LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_${config}.log"
 nbatches=25

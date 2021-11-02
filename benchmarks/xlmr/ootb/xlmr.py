@@ -61,10 +61,11 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument("--inference-only", action="store_true", default=False)
     parser.add_argument("--famconfig", type=str, default="tiny")
     parser.add_argument("--use-gpu", action="store_true", default=False)
-    parser.add_argument("--num-batches", type=int, default=5)
+    parser.add_argument("--num-batches", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--sequence-length", type=int, default=64)
     parser.add_argument("--vocab-size", type=int, default=250000)
+    parser.add_argument("--half-model", action="store_true", default=False)
     return parser
 
 def run():
@@ -88,6 +89,7 @@ def run():
     xlmr = get_model()
     if args.inference_only:
         xlmr.eval()
+    if args.half_model:
         xlmr.half()
     
     # use gpu
