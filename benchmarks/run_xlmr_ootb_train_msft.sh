@@ -3,10 +3,13 @@
 # Default values
 benchmark=xlmr
 implementation=ootb
-mode=train
-config=msft-1dev
 LOG_DIR=results
 LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_${config}.log"
+
+
+mode=train
+config=msft-1dev
+
 nbatches=10
 batchsize=4
 seqlength=512

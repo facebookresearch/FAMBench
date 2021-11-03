@@ -57,7 +57,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Benchmark XLM-R model"
     )
-    parser.add_argument("--logfile", type=str, default=None)
+    parser.add_argument("--logdir", type=str, default=None)
     parser.add_argument("--inference-only", action="store_true", default=False)
     parser.add_argument("--famconfig", type=str, default="tiny")
     parser.add_argument("--use-gpu", action="store_true", default=False)
@@ -76,14 +76,17 @@ def run():
     if(args.use_gpu):
         assert torch.cuda.is_available(), "No cuda device is available."
         device = torch.device("cuda", 0)
-
+    
     # prep logger
-    if args.logfile is not None:
-        famlogger = FB5Logger(args.logfile)
+    famlogger = None
+    if args.logdir is not None:
+        mode = "train"
         if(args.inference_only):
-            famlogger.header("XLMR", "OOTB", "eval", args.famconfig)
-        else:
-            famlogger.header("XLMR", "OOTB", "train", args.famconfig)
+            mode = "eval"
+
+        logpath = "{}/XLMR_OOTB_{}_{}.log".format(args.logdir, mode, args.famconfig)
+        famlogger = FB5Logger(logpath)
+        famlogger.header("XLMR", "OOTB", mode, args.famconfig)
 
     # prep model and data
     xlmr = get_model()
@@ -104,7 +107,7 @@ def run():
     print("data generated")
 
     # benchmark!
-    if args.logfile is not None:
+    if famlogger is not None:
         famlogger.run_start(time_ms=time_ms(args.use_gpu))
     
     if args.inference_only:
@@ -126,7 +129,7 @@ def run():
             optimizer.zero_grad() 
             famlogger.batch_stop(time_ms=time_ms(args.use_gpu))
 
-    if args.logfile is not None:
+    if famlogger is not None:
         famlogger.run_stop(0, 0, time_ms=time_ms(args.use_gpu))
         famlogger.record_batch_info(num_batches=len(x_l), batch_size=len(x_l[0]))
 
