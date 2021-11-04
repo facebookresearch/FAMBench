@@ -81,29 +81,25 @@ numpy
 
 ## Optional
 ### fbgemm_gpu
-Install additional requirements:
+Install fbgemm_gpu dependencies:
 ```
 conda install jinja2
-conda install nvidiacub
 ```
 Set export paths:
 ```
-export CUDACXX=/usr/local/cuda/bin/nvcc
-export CUB_DIR=${CUB_DIR}
+export CUDACXX="/path/to/nvcc"
 ```
 Clone repo:
 ```
-git clone https://github.com/pytorch/FBGEMM.git
+git clone --recursive https://github.com/pytorch/FBGEMM.git
+```
+Build fbgemm_gpu:
+```
 cd FBGEMM/fbgemm_gpu
-git submodule sync
-git submodule update --init --recursive    
-```
-Run installer:
-```
 python setup.py build develop
 ```
-Copy shared object file
+Copy shared object file:
 ```
 cp fbgemm_gpu_py.so /<proxyworkloads root>/benchmarks
 ```
-Enable fbgemm_gpu by adding command line argument: --use-fbgemm-gpu
+Enable fbgemm_gpu in a benchmark of DLRM by adding "--use-fbgemm-gpu" to the config file that is passed to run_dlrm_ootb_train.sh (benchmarking training) or run_dlrm_ootb_infer.sh (benchmarking inference).
