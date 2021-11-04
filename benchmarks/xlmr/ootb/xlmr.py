@@ -76,7 +76,7 @@ def run():
     if(args.use_gpu):
         assert torch.cuda.is_available(), "No cuda device is available."
         device = torch.device("cuda", 0)
-    
+
     # prep logger
     famlogger = None
     if args.logdir is not None:
