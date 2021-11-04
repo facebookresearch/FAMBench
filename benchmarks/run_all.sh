@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Ideally this would be a script to run, log, and summarize all relevant benchmarks, 
-# but at the moment it is more of an example. 
+# Run all major benchmarks with tiny configs as an example
+# Also used as a test script to make sure benchmarks run correctly.
 
 # DLRM OOTB
 ./run_dlrm_ootb_infer.sh -l results
