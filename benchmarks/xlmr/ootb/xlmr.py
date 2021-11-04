@@ -57,14 +57,15 @@ def init_argparse() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         description="Benchmark XLM-R model"
     )
-    parser.add_argument("--logfile", type=str, default=None)
+    parser.add_argument("--logdir", type=str, default=None)
     parser.add_argument("--inference-only", action="store_true", default=False)
     parser.add_argument("--famconfig", type=str, default="tiny")
     parser.add_argument("--use-gpu", action="store_true", default=False)
-    parser.add_argument("--num-batches", type=int, default=5)
+    parser.add_argument("--num-batches", type=int, default=10)
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--sequence-length", type=int, default=64)
     parser.add_argument("--vocab-size", type=int, default=250000)
+    parser.add_argument("--half-model", action="store_true", default=False)
     return parser
 
 def run():
@@ -77,17 +78,21 @@ def run():
         device = torch.device("cuda", 0)
 
     # prep logger
-    if args.logfile is not None:
-        famlogger = FB5Logger(args.logfile)
+    famlogger = None
+    if args.logdir is not None:
+        mode = "train"
         if(args.inference_only):
-            famlogger.header("XLMR", "OOTB", "eval", args.famconfig)
-        else:
-            famlogger.header("XLMR", "OOTB", "train", args.famconfig)
+            mode = "eval"
+
+        logpath = "{}/XLMR_OOTB_{}_{}.log".format(args.logdir, mode, args.famconfig)
+        famlogger = FB5Logger(logpath)
+        famlogger.header("XLMR", "OOTB", mode, args.famconfig)
 
     # prep model and data
     xlmr = get_model()
     if args.inference_only:
         xlmr.eval()
+    if args.half_model:
         xlmr.half()
     
     # use gpu
@@ -102,7 +107,7 @@ def run():
     print("data generated")
 
     # benchmark!
-    if args.logfile is not None:
+    if famlogger is not None:
         famlogger.run_start(time_ms=time_ms(args.use_gpu))
     
     if args.inference_only:
@@ -124,7 +129,7 @@ def run():
             optimizer.zero_grad() 
             famlogger.batch_stop(time_ms=time_ms(args.use_gpu))
 
-    if args.logfile is not None:
+    if famlogger is not None:
         famlogger.run_stop(0, 0, time_ms=time_ms(args.use_gpu))
         famlogger.record_batch_info(num_batches=len(x_l), batch_size=len(x_l[0]))
 
