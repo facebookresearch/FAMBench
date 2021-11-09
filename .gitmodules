@@ -1,3 +1,6 @@
 [submodule "param"]
 	path = param
 	url = https://github.com/facebookresearch/param.git
+[submodule "benchmarks/rnnt/ootb/inference/third_party/pybind"]
+	path = benchmarks/rnnt/ootb/inference/third_party/pybind
+	url = https://github.com/pybind/pybind11.git

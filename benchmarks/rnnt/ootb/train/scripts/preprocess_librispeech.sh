@@ -14,37 +14,41 @@
 
 #!/usr/bin/env bash
 
-python ./utils/convert_librispeech.py \
+script_dir=`dirname "${BASH_SOURCE[0]}"`
+set -x
+UTILS_DIR="$script_dir/../utils"
+
+python $UTILS_DIR/convert_librispeech.py \
     --input_dir $DATASET_DIR/LibriSpeech/train-clean-100 \
     --dest_dir $DATASET_DIR/LibriSpeech/train-clean-100-wav \
     --output_json $DATASET_DIR/LibriSpeech/librispeech-train-clean-100-wav.json
-python ./utils/convert_librispeech.py \
+python $UTILS_DIR/convert_librispeech.py \
     --input_dir $DATASET_DIR/LibriSpeech/train-clean-360 \
     --dest_dir $DATASET_DIR/LibriSpeech/train-clean-360-wav \
     --output_json $DATASET_DIR/LibriSpeech/librispeech-train-clean-360-wav.json
-python ./utils/convert_librispeech.py \
+python $UTILS_DIR/convert_librispeech.py \
     --input_dir $DATASET_DIR/LibriSpeech/train-other-500 \
     --dest_dir $DATASET_DIR/LibriSpeech/train-other-500-wav \
     --output_json $DATASET_DIR/LibriSpeech/librispeech-train-other-500-wav.json
 
 
-python ./utils/convert_librispeech.py \
+python $UTILS_DIR/convert_librispeech.py \
     --input_dir $DATASET_DIR/LibriSpeech/dev-clean \
     --dest_dir $DATASET_DIR/LibriSpeech/dev-clean-wav \
     --output_json $DATASET_DIR/LibriSpeech/librispeech-dev-clean-wav.json
-python ./utils/convert_librispeech.py \
+python $UTILS_DIR/convert_librispeech.py \
     --input_dir $DATASET_DIR/LibriSpeech/dev-other \
     --dest_dir $DATASET_DIR/LibriSpeech/dev-other-wav \
     --output_json $DATASET_DIR/LibriSpeech/librispeech-dev-other-wav.json
 
 
-python ./utils/convert_librispeech.py \
+python $UTILS_DIR/convert_librispeech.py \
     --input_dir $DATASET_DIR/LibriSpeech/test-clean \
     --dest_dir $DATASET_DIR/LibriSpeech/test-clean-wav \
     --output_json $DATASET_DIR/LibriSpeech/librispeech-test-clean-wav.json
-python ./utils/convert_librispeech.py \
+python $UTILS_DIR/convert_librispeech.py \
     --input_dir $DATASET_DIR/LibriSpeech/test-other \
     --dest_dir $DATASET_DIR/LibriSpeech/test-other-wav \
     --output_json $DATASET_DIR/LibriSpeech/librispeech-test-other-wav.json
 
-bash scripts/create_sentencepieces.sh
+bash $script_dir/create_sentencepieces.sh
