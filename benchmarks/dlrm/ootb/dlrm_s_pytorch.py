@@ -1443,6 +1443,7 @@ def run():
     parser.add_argument("--lr-num-decay-steps", type=int, default=0)
 
     parser.add_argument("--precache-ml-data", type=int, nargs='?', default=None, const=sys.maxsize)
+    parser.add_argument("--use-persistent-cache", action="store_true", default=False)
     parser.add_argument("--warmup-steps", type=int, default=0)
     # FB5 Logging
     parser.add_argument("--fb5logger", type=str, default=None)
@@ -1587,12 +1588,12 @@ def run():
         ln_emb = np.fromstring(args.arch_embedding_size, dtype=int, sep="-")
         m_den = ln_bot[0]
         train_data, train_ld, test_data, test_ld = dp.make_random_data_and_loader(
-            args, ln_emb, m_den, cache_size=args.precache_ml_data
+            args, ln_emb, m_den, use_persistent_cache=args.use_persistent_cache, cache_size=args.precache_ml_data
         )
         nbatches = args.num_batches if args.num_batches > 0 else len(train_ld)
         nbatches_test = len(test_ld)
 
-    assert args.num_batches > args.warmup_steps, (f"Change --warmup-steps={args.warmup_steps} to be lower than --num-batches={args.num_batches}.")
+    assert nbatches > args.warmup_steps, (f"Change --warmup-steps={args.warmup_steps} to be lower than --num-batches={args.num_batches}.")
 
     args.ln_emb = ln_emb.tolist()
     if args.mlperf_logging:

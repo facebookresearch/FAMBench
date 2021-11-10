@@ -21,6 +21,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 # others
 from os import path
 import sys
+import pathlib
 import functools
 import bisect
 import collections
@@ -32,6 +33,10 @@ import numpy as np
 from numpy import random as ra
 from collections import deque
 
+import sqlite3
+import zstandard as zstd
+import struct
+import math
 
 # pytorch
 import torch
@@ -572,6 +577,66 @@ def make_criteo_data_and_loaders(args, offset_to_length_converter=False):
 
     return train_data, train_loader, test_data, test_loader
 
+def setup_db_connection(args):
+
+    cache_table_name = "'" + " ".join(sys.argv[1:6] + sys.argv[9:12]) + "'"
+
+    cache_file_name = pathlib.Path(__file__).absolute().parents[0].resolve() / "dlrm_ml_random_dataset_cache.db"
+    db_connection = sqlite3.connect(cache_file_name)
+    db_connection.execute('pragma journal_mode=wal')
+    db_cursor = db_connection.cursor()
+    db_cursor.execute("CREATE TABLE IF NOT EXISTS " + cache_table_name + " (minibatch_size INT, X blob, lS_o blob, lS_i blob, lS_i_lengths blob)")    
+    db_cursor.execute("CREATE TABLE IF NOT EXISTS CACHE_TABLE_NAMES (name TEXT)")
+    db_cursor.execute("CREATE INDEX IF NOT EXISTS name_index ON CACHE_TABLE_NAMES (name)")
+
+    cache_exists = db_cursor.execute("SELECT count(name) FROM CACHE_TABLE_NAMES WHERE name = " + cache_table_name).fetchone()[0]
+    cache_exists = True if cache_exists > 0 else False
+    if not cache_exists:
+        db_cursor.execute("BEGIN")
+        db_cursor.execute("INSERT INTO CACHE_TABLE_NAMES VALUES (" + cache_table_name + ")")
+        db_connection.commit()
+    return db_connection, cache_exists, cache_table_name
+
+cctx = zstd.ZstdCompressor(level=5)
+def disk_cache_store(db_connection, cache_table_name, index, X, lS_o, lS_i):
+    db_cursor = db_connection.cursor()
+    lS_i_lengths = np.array(list(map(len, lS_i)))
+    byte_arrays_l = []
+    # X - 2d tensor
+    # lS_o - list of tensors
+    # ls_i - list of tensors
+    for data in [X, lS_o, lS_i, lS_i_lengths]:
+        ba = bytearray()
+        if isinstance(data, list) and isinstance(data[0], torch.Tensor):
+            data = torch.cat(data)
+        if isinstance(data, torch.Tensor):
+            data = data.flatten()
+            data = data.data.cpu().numpy()
+        for val in data:
+            ba += struct.pack("d", float(val))
+        byte_arrays_l.append(ba)
+    record = tuple([X.shape[0]] + list(map(cctx.compress, byte_arrays_l)))
+    db_cursor.execute("BEGIN")
+    db_cursor.execute("INSERT INTO " + cache_table_name + " VALUES (?,?,?,?,?)", record)
+    db_connection.commit()
+
+def disk_cache_mark_completed():
+    return
+
+dctx = zstd.ZstdDecompressor()
+@functools.lru_cache(maxsize=None)
+def disk_cache_get(db_connection, cache_table_name, index):
+    db_cursor = db_connection.cursor()
+    db_cursor.execute("SELECT * FROM " + cache_table_name + " WHERE rowid = " + str(index + 1))
+    record = db_cursor.fetchone()
+    minibatch_size = record[0]
+    (X, lS_o, lS_i_flat, lS_i_lengths) = [np.frombuffer(dctx.decompress(rec), dtype=np.double) for rec in record[1:]]
+    segment_indices_list = np.cumsum([0] + list(map(int, lS_i_lengths))).tolist()
+    lS_i = [torch.tensor(lS_i_flat[s:e].tolist(), dtype=torch.long) for s, e in zip(segment_indices_list[:-1], segment_indices_list[1:])]
+    row_size = minibatch_size
+    lS_o = [torch.tensor(lS_o[x:x+row_size].tolist(), dtype=torch.long) for x in range(0,len(lS_o),row_size)]
+    X = torch.tensor(X.reshape(minibatch_size, -1).tolist())
+    return (X, lS_o, lS_i)
 
 # uniform ditribution (input data)
 class RandomDataset(Dataset):
@@ -597,6 +662,7 @@ class RandomDataset(Dataset):
             rand_data_mu=-1,
             rand_data_sigma=1,
             rand_seed=0,
+            use_persistent_cache=False,
             cache_size=None,
     ):
         # compute batch size
@@ -628,6 +694,16 @@ class RandomDataset(Dataset):
         self.rand_data_sigma = rand_data_sigma
         self.cache_size = cache_size
 
+        self.read_disk_cache = False
+        self.make_disk_cache = False 
+        if use_persistent_cache:
+            self.db_connection, disk_cache_exists, self.db_cache_table_name = setup_db_connection(self)
+            if disk_cache_exists:
+                self.read_disk_cache = True
+            else:
+                self.make_disk_cache = True                           
+
+
     def reset_numpy_seed(self, numpy_rand_seed):
         np.random.seed(numpy_rand_seed)
         # torch.manual_seed(numpy_rand_seed)
@@ -657,19 +733,25 @@ class RandomDataset(Dataset):
             else:
                 Gen = generate_dist_input_batch
                 cache_key = index % self.cache_size
-            (X, lS_o, lS_i) = Gen(
-                self.m_den,
-                tuple(self.ln_emb.tolist()),
-                n,
-                self.num_indices_per_lookup,
-                self.num_indices_per_lookup_fixed,
-                rand_data_dist=self.rand_data_dist,
-                rand_data_min=self.rand_data_min,
-                rand_data_max=self.rand_data_max,
-                rand_data_mu=self.rand_data_mu,
-                rand_data_sigma=self.rand_data_sigma,
-                cache_key=cache_key,
-            )
+
+            if self.read_disk_cache:
+                (X, lS_o, lS_i) = disk_cache_get(self.db_connection, self.db_cache_table_name, index)
+            else:
+                (X, lS_o, lS_i) = Gen(
+                    self.m_den,
+                    tuple(self.ln_emb.tolist()),
+                    n,
+                    self.num_indices_per_lookup,
+                    self.num_indices_per_lookup_fixed,
+                    rand_data_dist=self.rand_data_dist,
+                    rand_data_min=self.rand_data_min,
+                    rand_data_max=self.rand_data_max,
+                    rand_data_mu=self.rand_data_mu,
+                    rand_data_sigma=self.rand_data_sigma,
+                    cache_key=cache_key,
+                )
+            if self.make_disk_cache:   
+                disk_cache_store(self.db_connection, self.db_cache_table_name, index, X, lS_o, lS_i)
         elif self.data_generation == "synthetic":
             (X, lS_o, lS_i) = generate_synthetic_input_batch(
                 self.m_den,
@@ -718,7 +800,8 @@ def collate_wrapper_random_length(list_of_tuples):
 
 
 def make_random_data_and_loader(args, ln_emb, m_den,
-    offset_to_length_converter=False, cache_size=None,
+    offset_to_length_converter=False, use_persistent_cache=False, 
+    cache_size=None,
 ):
 
     train_data = RandomDataset(
@@ -741,6 +824,7 @@ def make_random_data_and_loader(args, ln_emb, m_den,
         rand_data_mu=args.rand_data_mu,
         rand_data_sigma=args.rand_data_sigma,
         rand_seed=args.numpy_rand_seed,
+        use_persistent_cache=use_persistent_cache,
         cache_size=cache_size,
     )  # WARNING: generates a batch of lookups at once
 
@@ -764,6 +848,7 @@ def make_random_data_and_loader(args, ln_emb, m_den,
         rand_data_mu=args.rand_data_mu,
         rand_data_sigma=args.rand_data_sigma,
         rand_seed=args.numpy_rand_seed,
+        use_persistent_cache=use_persistent_cache,
         cache_size=cache_size,
     )
 

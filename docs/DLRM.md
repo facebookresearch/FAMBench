@@ -79,6 +79,8 @@ scikit-learn
 
 numpy
 
+zstandard
+
 ## Optional
 ### fbgemm_gpu
 Install additional requirements:
