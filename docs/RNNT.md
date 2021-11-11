@@ -5,8 +5,17 @@
  - CUDA 11.0
  - Microconda
  - GPU device compatible with CUDA 11.0
- - sox
- - libsndfile1
+
+## Set-up
+
+There are two options for set-up, either using the setup_rnnt.sh script or manually installing packages below.
+
+## Automatic Script
+```
+cd benchmarks
+bash setup_rnnt.sh
+```
+## Manual Set-up
 
 ## Training
 
@@ -14,8 +23,8 @@ This document provides the detailed instructions to start training RNN-T models 
 
 ### Setting up the conda environment
 ```
-conda create -n py383 python=3.8.3
-conda activate py383
+conda create -n proxy-rnnt python=3.8.3
+conda activate proxy-rnnt
 pip install requests bs4 argparse
 conda install pytorch==1.7.0 torchvision==0.8.0 torchaudio==0.7.0 cudatoolkit=11.0 -c pytorch
 ```
@@ -31,7 +40,7 @@ export TORCH_CUDA_ARCH_LIST=8.0
 ```
 # Install required packages
 sudo apt-get install sox libsndfile1 jq numactl git cmake
-pip install unidecode==1.1.1 inflect==4.1.0 pandas==1.1.5 sentencepiece==0.1.94 librosa==0.8.0 soundfile==0.10.3.post1 tensorboard==2.3.0
+pip install unidecode==1.1.1 inflect==4.1.0 pandas==1.1.5 sentencepiece==0.1.94 librosa==0.8.0 soundfile==0.10.3.post1 tensorboard==2.3.0 numba==0.48.0
 
 # Set-up directories and exports
 # Pick a mounted location that can hold up to 500GB of dataset data
@@ -39,10 +48,10 @@ export DATASET_DIR=<your path>/rnnt/datasets
 export RESULT_DIR=<your path>/rnnt/results
 
 # Download and Extract LibriSpeech Dataset
-./download_librispeech.sh
+bash rnnt/ootb/train/scripts/download_librispeech.sh
 
 # Process the .flac files into .wav and .json
-./preprocess_librispeech.sh
+bash rnnt/ootb/train/scripts/preprocess_librispeech.sh
 ```
 
 ### Getting Training running:
@@ -76,7 +85,7 @@ rm -rf ../tests test ../tensorflow_binding
 cd ../../..
 
 # Install Nvidia CuDNN
-pip install -c nvidia cudnn==8.0.4
+conda install -c nvidia cudnn==8.0.4
 
 # Install apex
 pip install --global-option="--cpp_ext" --global-option="--cuda_ext" https://github.com/NVIDIA/apex/archive/8a1ed9e8d35dfad26fb973996319965e4224dcdd.zip
@@ -103,7 +112,7 @@ This document provides the detailed instructions to run inference on a pre-train
 
 Using the same conda environment as training:
 ```
-conda activate py383
+conda activate proxy-rnnt
 ```
 
 Install MLPerf loadgen and additional packages:

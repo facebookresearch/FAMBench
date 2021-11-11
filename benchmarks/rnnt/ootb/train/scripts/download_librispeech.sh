@@ -15,13 +15,17 @@
 
 #!/usr/bin/env bash
 
+script_dir=`dirname "${BASH_SOURCE[0]}"`
+set -x
+UTILS_DIR="$script_dir/../utils"
+
 DATASET="LibriSpeech"
 DATA_DIR="$DATASET_DIR/$DATASET"
-if [ ! -d "$DATASET_DIR" ]
+if [ ! -d "$DATA_DIR" ]
 then
-    mkdir -p $DATASET_DIR
+    mkdir -p $DATA_DIR
     chmod go+rx $DATASET_DIR
-    python utils/download_librispeech.py utils/librispeech.csv $DATA_DIR -e ${DATASET_DIR}/
+    python $UTILS_DIR/download_librispeech.py $UTILS_DIR/librispeech.csv $DATA_DIR -e ${DATASET_DIR}/
 else
-    echo "Directory $DATASET_DIR already exists."
+    echo "Directory $DATA_DIR already exists."
 fi
