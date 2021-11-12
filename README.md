@@ -124,3 +124,8 @@ The bigger the score, the better - but there are limits on how to get there. The
 - Out-Of-The-Box (OOTB): Improvements must come in through libraries, frameworks, and new hardware. No changing the model code (special exceptions for non-optimizing changes which enable porting to new hardware).
 - Optimized: No holds barred - make the system shine. Just keep in mind everything you do, you're asking the actual people who run the workloads to do it too if they're going to realize that performance. You'll need to describe what changes you made, so keep track.
 - Microbenchmarks - Implement the same operation as defined, and make it as fast as possible.
+
+## License
+
+This is released under the APACHE 2 license. Please see the [`LICENSE`](LICENSE) file for more information.
+
