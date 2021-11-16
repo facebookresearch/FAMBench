@@ -46,6 +46,9 @@ if __name__ == "__main__":
     parser_linear.add_argument('-t', '--dtype', default='float', help="data type", choices=["float", "float16", "bfloat16"])
     parser_linear.add_argument('-d', '--dataset', default='small')
 
+    parser_linear = subparsers.add_parser('gemm', help='measure gemm performance')
+    parser_linear.add_argument('-t', '--dtype', default='float', help="data type", choices=["float", "float16", "bfloat16"])
+    parser_linear.add_argument('-d', '--dataset', default='small')
     # FB5 Logging
 
     args=parser.parse_args()
@@ -85,7 +88,7 @@ if __name__ == "__main__":
         if args.fb5logger is not None:
             extra_metadata={"GB/s": global_bytes / global_elap / 1.0e3, "ELAP": global_elap, "BYTES": global_bytes}
             fb5logger.run_stop(args.steps, batch, extra_metadata=extra_metadata)
-    else:
+    elif args.kernel == 'linear':
         print("with linear dataset ", args.dataset, ", Data type: ", args.dtype)
         global_flops = 0
         global_elap = 0
@@ -120,3 +123,29 @@ if __name__ == "__main__":
         if args.fb5logger is not None:
             extra_metadata={"TF/s": global_flops / global_elap / 1.0e12, "ELAP": global_elap, "FLOPS": global_flops}
             fb5logger.run_stop(args.steps, batch_size, extra_metadata=extra_metadata)
+    else:
+        print("with gemm dataset ", args.dataset, ", Data type: ", args.dtype)
+        global_flops = 0
+        global_elap = 0
+        if args.fb5logger is not None:
+            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
+            fb5logger.run_start()
+        if args.dataset == 'small':
+            small_dataset = [ (256, 1024, 1024), ]
+            run_dataset = small_dataset
+        else:
+            import ast
+            run_dataset = ast.literal_eval(args.dataset)
+        for i in range(len(run_dataset)):
+            m, n, k = run_dataset[i]
+            elap = kgemm.run_single(args, m, n, k)
+            elap /= args.steps
+            
+            flops = m * n * k
+            # this is pure GEMM
+            flops *=2 
+            global_flops += flops
+            global_elap += elap
+        if args.fb5logger is not None:
+            extra_metadata={"TF/s": global_flops / global_elap / 1.0e12, "ELAP": global_elap, "FLOPS": global_flops}
+            fb5logger.run_stop(args.steps, run_dataset[0][0], extra_metadata=extra_metadata)
