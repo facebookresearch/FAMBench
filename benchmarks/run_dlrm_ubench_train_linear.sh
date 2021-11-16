@@ -21,7 +21,7 @@ shift $((OPTIND-1))
 benchmark=dlrm
 implementation=ubench
 mode=train
-config=linear_${dataset}_${datatype}
+config=linear_${dataset}_${dtype}
 LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_${config}.log"
 
 echo "=== Launching FB5 ==="
