@@ -5,32 +5,6 @@ import json
 import time
 import loggerconstants as constants
 
-def get_bmlogger(log_file_path = None):
-    """
-    Get benchmark logger. Call w/o args if want logger that does nothing. 
-    """
-    t = Nop() if log_file_path is None else FB5Logger
-    return t(log_file_path)
-
-class Nop:
-    def __init__(self):
-        pass
-
-    def __getattr__(self, attr):
-        return Nop()
-
-    def __call__(self, *args, **kwargs):
-        return Nop()
-
-    def __enter__(self):
-        return Nop()
-
-    def __exit__(self):
-        pass
-
-    def __repr__(self):
-        return "Logger is disabled. fb5logger.get_fb5logger was not passed a file path."
-
 # TODO: change name to FAMLogger
 class FB5Logger():
 
