@@ -7,7 +7,7 @@ import torch.nn.functional as F
 # logging
 import pathlib
 from os import fspath
-p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogger"
+p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogging"
 sys.path.append(fspath(p))
 from bmlogger import get_bmlogger
 
