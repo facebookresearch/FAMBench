@@ -9,7 +9,7 @@ def get_bmlogger(log_file_path = None):
     """
     Get benchmark logger. Call w/o args if want logger that does nothing. 
     """
-    t = Nop() if log_file_path is None else FB5Logger
+    t = Nop() if log_file_path is None else BMLogger
     return t(log_file_path)
 
 class Nop:
@@ -29,10 +29,9 @@ class Nop:
         pass
 
     def __repr__(self):
-        return "Logger is disabled. fb5logger.get_fb5logger was not passed a file path."
+        return "Logger is disabled. bmlogger.get_bmlogger was not passed a file path."
 
-# TODO: change name to FAMLogger
-class FB5Logger():
+class BMLogger():
 
     def __init__(self, log_file_path):
         # Create the directory if it doesn't exist.

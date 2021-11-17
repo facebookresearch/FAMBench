@@ -4,12 +4,12 @@ import sys
 import time
 import torch.nn.functional as F
 
-# FB5 Logger
+# logging
 import pathlib
 from os import fspath
-p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogger"
 sys.path.append(fspath(p))
-from fb5logger import get_bmlogger
+from bmlogger import get_bmlogger
 
 # from fairseq.models.roberta import XLMRModel
 
