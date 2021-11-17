@@ -50,12 +50,13 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument("--inference-only", action="store_true", default=False)
     parser.add_argument("--famconfig", type=str, default="tiny")
     parser.add_argument("--use-gpu", action="store_true", default=False)
-    parser.add_argument("--num-batches", type=int, default=10)
+    parser.add_argument("--num-batches", type=int, default=10) # num batches to benchmark 
+    parser.add_argument("--warmup-batches", type=int, default=0) # num batches to warmup
     parser.add_argument("--batch-size", type=int, default=64)
     parser.add_argument("--sequence-length", type=int, default=64)
     parser.add_argument("--vocab-size", type=int, default=250000)
     parser.add_argument("--half-model", action="store_true", default=False)
-    parser.add_argument("--warmup-batches", type=int, default=3)
+    
     return parser
 
 def run():
@@ -90,9 +91,32 @@ def run():
         xlmr = xlmr.to(device)
 
     if args.inference_only:
+        x_l_warmup = [generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size, get_y_true=False) for _ in range(args.warmup_batches)]
         x_l = [generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size, get_y_true=False) for _ in range(args.num_batches)]
     else:
+        x_l_warmup, y_true_l_warmup = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.warmup_batches)])
         x_l, y_true_l = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.num_batches)])
+
+    # warmup
+    if args.inference_only:
+        for x in x_l_warmup:
+            if args.use_gpu:
+                x = x.to(device)
+            y_pred = xlmr(x)
+    else:
+        #training loop
+        learning_rate = 0.01
+        optimizer = torch.optim.SGD(xlmr.parameters(), lr=learning_rate)
+        for x, y_true in zip(x_l_warmup, y_true_l_warmup):    
+            if args.use_gpu:
+                x = x.to(device)
+                y_true = y_true.to(device)
+            y_pred = xlmr(x)
+            y_true = y_true.long()
+            loss = F.cross_entropy(y_pred[0], y_true[:,0,:]) # TODO: fix y_true data input hack
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad() 
 
     # benchmark!
     bmlogger.run_start(time_ms=time_ms(args.use_gpu))
