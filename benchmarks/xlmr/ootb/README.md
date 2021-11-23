@@ -1,1 +1,1 @@
-Use run_xlmr_ootb.sh to run an xlmr benchmark. 
+Run `./run_xlmr_ootb.sh` to run an xlmr benchmark with an example config. 
