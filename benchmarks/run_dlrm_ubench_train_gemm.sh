@@ -1,4 +1,4 @@
-steps=100
+steps=1000
 device='cpu'
 dataset='A'
 dtype='float'
@@ -21,7 +21,7 @@ shift $((OPTIND-1))
 benchmark=dlrm
 implementation=ubench
 mode=train
-config=linear_${dataset}_${dtype}
+config=gemm_${dataset}_${dtype}
 LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_${config}.log"
 
 echo "=== Launching FB5 ==="
@@ -33,6 +33,6 @@ echo "Saving FB5 Logger File: ${LOGGER_FILE}"
 echo
 echo "Running Command:"
 
-(set -x; python dlrm/ubench/dlrm_ubench_train_driver.py --steps=$steps --warmups 100 --device=$device --fb5logger=${LOGGER_FILE} linear --dataset="${dataset}" --dtype="${dtype}" 2>&1)
+(set -x; python dlrm/ubench/dlrm_ubench_train_driver.py --steps=$steps --warmups 100 --device=$device --fb5logger=${LOGGER_FILE} gemm --dataset="${dataset}" --dtype="${dtype}" 2>&1)
 
 echo "=== Completed Run ==="
