@@ -1,4 +1,4 @@
-# Proxy Workloads
+# FAMBench (Family Friendly Benchmarking)
 
 These benchmarks represent important workloads. The faster these benchmarks are, the happier owners of important workloads are. The maintainers, updates, and rules in this benchmark suite all exist to keep the connection between the people running these benchmarks and the people running the original workloads.
 
