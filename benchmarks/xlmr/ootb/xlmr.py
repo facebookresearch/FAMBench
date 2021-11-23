@@ -37,27 +37,10 @@ def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=250000, get_y_tru
     x = torch.rand(shape) * vocab_size
     x = x.int()
     if get_y_true:
-        y_true = torch.rand((batchsize, seq_length, 250002))
+        y_true = torch.rand((batchsize, seq_length, 250002)) #TODO: fix this magic number 
         return [x, y_true]
     else:
         return x
-
-def init_argparse() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Benchmark XLM-R model"
-    )
-    parser.add_argument("--logdir", type=str, default=None)
-    parser.add_argument("--inference-only", action="store_true", default=False)
-    parser.add_argument("--famconfig", type=str, default="tiny")
-    parser.add_argument("--use-gpu", action="store_true", default=False)
-    parser.add_argument("--num-batches", type=int, default=10) # num batches to benchmark 
-    parser.add_argument("--warmup-batches", type=int, default=0) # num batches to warmup
-    parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--sequence-length", type=int, default=64)
-    parser.add_argument("--vocab-size", type=int, default=250000)
-    parser.add_argument("--half-model", action="store_true", default=False)
-    
-    return parser
 
 def inference(model, x_l, device=None, logger=None):
     """
@@ -107,6 +90,23 @@ def train(model, x_l, y_true_l, device=None, logger=None):
         optimizer.zero_grad() 
         logger.batch_stop(time_ms=time_ms(device is not None))
 
+def init_argparse() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        description="Benchmark XLM-R model"
+    )
+    parser.add_argument("--logdir", type=str, default=None)
+    parser.add_argument("--inference-only", action="store_true", default=False)
+    parser.add_argument("--famconfig", type=str, default="tiny")
+    parser.add_argument("--use-gpu", action="store_true", default=False)
+    parser.add_argument("--num-batches", type=int, default=10) # num batches to benchmark 
+    parser.add_argument("--warmup-batches", type=int, default=0) # num batches to warmup
+    parser.add_argument("--batch-size", type=int, default=64)
+    parser.add_argument("--sequence-length", type=int, default=64)
+    parser.add_argument("--vocab-size", type=int, default=250000)
+    parser.add_argument("--half-model", action="store_true", default=False)
+    
+    return parser
+
 def run():
     parser = init_argparse()
     args = parser.parse_args()
@@ -138,13 +138,17 @@ def run():
     # use gpu
     if device:
         xlmr = xlmr.to(device)
-
+    
     if args.inference_only:
         x_l_warmup = [generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size, get_y_true=False) for _ in range(args.warmup_batches)]
         x_l = [generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size, get_y_true=False) for _ in range(args.num_batches)]
     else:
-        x_l_warmup, y_true_l_warmup = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.warmup_batches)])
-        x_l, y_true_l = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.num_batches)])
+        x_l_warmup, y_true_l_warmup = ([], [])
+        x_l, y_true_l = ([], [])
+        if args.warmup_batches > 0:
+            x_l_warmup, y_true_l_warmup = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.warmup_batches)])
+        if args.num_batches > 0:
+            x_l, y_true_l = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.num_batches)])
 
     # warmup
     if args.inference_only:
