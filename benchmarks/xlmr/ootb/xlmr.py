@@ -61,9 +61,9 @@ def init_argparse() -> argparse.ArgumentParser:
 
 def inference(model, x_l, device=None, logger=None):
     """
+    model: model to infer on
     x_l: data 
-    use_gpu->bool: whether or not to use gpu
-    device->torch.device: optional device (generally a gpu)
+    device->torch.device: optional device (generally a gpu). If None, default to cpu.
     logger->BMLogger: optional logger. If no logger, does not log.
 
     Performs inference loop, with optional logging.
@@ -79,6 +79,15 @@ def inference(model, x_l, device=None, logger=None):
         logger.batch_stop(time_ms=time_ms(device is not None))
 
 def train(model, x_l, y_true_l, device=None, logger=None):
+    """
+    model: model to infer on
+    x_l: input data
+    y_true_l: true labels
+    device->torch.device: optional device (generally a gpu). If None, default to cpu.
+    logger->BMLogger: optional logger. If no logger, does not log.
+
+    Performs train loop, with optional logging.
+    """
     if logger is None:
         logger = get_bmlogger() #No op logger
 
@@ -123,7 +132,7 @@ def run():
     xlmr = get_model()
     if args.inference_only:
         xlmr.eval()
-    if args.half_model:
+    if device and args.half_model:
         xlmr.half()
     
     # use gpu
