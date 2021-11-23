@@ -59,11 +59,51 @@ def init_argparse() -> argparse.ArgumentParser:
     
     return parser
 
+def inference(model, x_l, device=None, logger=None):
+    """
+    x_l: data 
+    use_gpu->bool: whether or not to use gpu
+    device->torch.device: optional device (generally a gpu)
+    logger->BMLogger: optional logger. If no logger, does not log.
+
+    Performs inference loop, with optional logging.
+    """
+    if logger is None:
+        logger = get_bmlogger() #No op logger
+
+    for x in x_l:
+        logger.batch_start()
+        if device:
+            x = x.to(device)
+        y_pred = model(x)
+        logger.batch_stop(time_ms=time_ms(device is not None))
+
+def train(model, x_l, y_true_l, device=None, logger=None):
+    if logger is None:
+        logger = get_bmlogger() #No op logger
+
+    #training loop
+    learning_rate = 0.01
+    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    for x, y_true in zip(x_l, y_true_l):    
+        logger.batch_start()
+        if device:
+            x = x.to(device)
+            y_true = y_true.to(device)
+        y_pred = model(x)
+        y_true = y_true.long()
+        loss = F.cross_entropy(y_pred[0], y_true[:,0,:]) # TODO: fix y_true data input hack
+        loss.backward()
+        optimizer.step()
+        optimizer.zero_grad() 
+        logger.batch_stop(time_ms=time_ms(device is not None))
+
 def run():
     parser = init_argparse()
     args = parser.parse_args()
 
     # check for device
+    device=None
     if(args.use_gpu):
         assert torch.cuda.is_available(), "No cuda device is available."
         device = torch.device("cuda", 0)
@@ -87,7 +127,7 @@ def run():
         xlmr.half()
     
     # use gpu
-    if args.use_gpu:
+    if device:
         xlmr = xlmr.to(device)
 
     if args.inference_only:
@@ -99,51 +139,17 @@ def run():
 
     # warmup
     if args.inference_only:
-        for x in x_l_warmup:
-            if args.use_gpu:
-                x = x.to(device)
-            y_pred = xlmr(x)
+        inference(xlmr, x_l_warmup, device=device)
     else:
-        #training loop
-        learning_rate = 0.01
-        optimizer = torch.optim.SGD(xlmr.parameters(), lr=learning_rate)
-        for x, y_true in zip(x_l_warmup, y_true_l_warmup):    
-            if args.use_gpu:
-                x = x.to(device)
-                y_true = y_true.to(device)
-            y_pred = xlmr(x)
-            y_true = y_true.long()
-            loss = F.cross_entropy(y_pred[0], y_true[:,0,:]) # TODO: fix y_true data input hack
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad() 
+        train(xlmr, x_l_warmup, y_true_l_warmup, device=device)
 
     # benchmark!
     bmlogger.run_start(time_ms=time_ms(args.use_gpu))
     
     if args.inference_only:
-        for x in x_l:
-            bmlogger.batch_start()
-            if args.use_gpu:
-                x = x.to(device)
-            y_pred = xlmr(x)
-            bmlogger.batch_stop(time_ms=time_ms(args.use_gpu))
+        inference(xlmr, x_l, device=device, logger=bmlogger)
     else:
-        #training loop
-        learning_rate = 0.01
-        optimizer = torch.optim.SGD(xlmr.parameters(), lr=learning_rate)
-        for x, y_true in zip(x_l, y_true_l):    
-            bmlogger.batch_start()
-            if args.use_gpu:
-                x = x.to(device)
-                y_true = y_true.to(device)
-            y_pred = xlmr(x)
-            y_true = y_true.long()
-            loss = F.cross_entropy(y_pred[0], y_true[:,0,:]) # TODO: fix y_true data input hack
-            loss.backward()
-            optimizer.step()
-            optimizer.zero_grad() 
-            bmlogger.batch_stop(time_ms=time_ms(args.use_gpu))
+        train(xlmr, x_l, y_true_l, device=device, logger=bmlogger)
 
     bmlogger.run_stop(0, 0, time_ms=time_ms(args.use_gpu))
     bmlogger.record_batch_info(num_batches=len(x_l), batch_size=len(x_l[0]))

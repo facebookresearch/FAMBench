@@ -1,0 +1,1 @@
+Use run_xlmr_ootb.sh to run an xlmr benchmark. 
