@@ -11,7 +11,20 @@
 There are two options for set-up, either using the setup_rnnt.sh script or manually installing packages below.
 
 ## Automatic Script
+
+Before running the setup script, you need to prepare a large mount that can hold up to 500GB of dataset data.
+
 ```
+# Set-up directories and exports
+# Pick a mounted location that can hold up to 500GB of dataset data
+export DATASET_DIR=<mounted path>/rnnt/datasets
+export RESULT_DIR=<mounted path>/rnnt/results
+mkdir -p $DATASET_DIR
+mkdir -p $RESULT_DIR
+
+# Launch the automatic script. This will install dependencies to run RNN-T on Nvidia A100.
+# The script will also download the Open Source LibriSpeech dataset to $DATASET_DIR, and pre-process
+# the data into .wav and .json files.
 cd benchmarks
 bash setup_rnnt.sh
 ```
