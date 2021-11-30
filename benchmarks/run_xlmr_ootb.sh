@@ -11,7 +11,8 @@ batchsize=16
 seqlength=16
 vocabsize=250000
 LOG_DIR=results
-config_flags="--inference-only --num-batches=${nbatches} --batch-size=${batchsize} --sequence-length=${seqlength} --vocab-size=${vocabsize} --famconfig=${config_name} --half-model"
+warmupbatches=1
+config_flags="--inference-only --num-batches=${nbatches} --batch-size=${batchsize} --sequence-length=${seqlength} --vocab-size=${vocabsize} --famconfig=${config_name} --half-model --warmup-batches=${warmupbatches}"
 
 while getopts "hl:c:" flag ;
 do
