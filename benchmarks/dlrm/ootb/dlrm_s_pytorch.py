@@ -137,9 +137,9 @@ from tricks.md_embedding_bag import PrEmbeddingBag, md_solver
 # FB5 Logger
 import pathlib
 from os import fspath
-p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogging"
 sys.path.append(fspath(p))
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 import loggerconstants
 
 # quotient-remainder trick
@@ -1175,17 +1175,21 @@ def inference(
         scores = []
         targets = []
 
+    bmlogger = get_bmlogger() # default to Nop logger
     if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
-        fb5logger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.EXPS)
+        bmlogger = get_bmlogger(args.fb5logger)
+        bmlogger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.EXPS)
 
     for i, testBatch in enumerate(test_ld):
         # early exit if nbatches was set by the user and was exceeded
         if nbatches > 0 and i >= nbatches:
             break
 
-        if i == args.warmup_steps and args.fb5logger is not None:
-            fb5logger.run_start()
+        if i == args.warmup_steps:
+            bmlogger.run_start()
+
+        if i >= args.warmup_steps:
+            bmlogger.batch_start()
 
         X_test, lS_o_test, lS_i_test, T_test, W_test, CBPP_test = unpack_batch(
             testBatch
@@ -1231,8 +1235,10 @@ def inference(
                 test_accu += A_test
                 test_samp += mbs_test
 
-    if args.fb5logger is not None:
-        fb5logger.run_stop(nbatches - args.warmup_steps, args.mini_batch_size)
+        if i >= args.warmup_steps:
+            bmlogger.batch_stop()
+
+    bmlogger.run_stop(nbatches - args.warmup_steps, args.mini_batch_size)
 
     if args.mlperf_logging:
         with record_function("DLRM mlperf sklearn metrics compute"):
@@ -2058,9 +2064,10 @@ def run():
 
         if not args.inference_only:
 
+            bmlogger = get_bmlogger() # default to Nop logger
             if args.fb5logger is not None:
-                fb5logger = FB5Logger(args.fb5logger)
-                fb5logger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
+                bmlogger = get_bmlogger(args.fb5logger)
+                bmlogger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
             
             k = 0
             while k < args.nepochs:
@@ -2095,8 +2102,8 @@ def run():
                     if j < skip_upto_batch:
                         continue
 
-                    if k == 0 and j == args.warmup_steps and args.fb5logger is not None:
-                        fb5logger.run_start()
+                    if k == 0 and j == args.warmup_steps:
+                        bmlogger.run_start()
 
                     X, lS_o, lS_i, T, W, CBPP = unpack_batch(inputBatch)
 
@@ -2361,8 +2368,8 @@ def run():
                                     },
                                 )
                             break
-                if k == 0 and args.fb5logger is not None:
-                    fb5logger.run_stop(nbatches - args.warmup_steps, args.mini_batch_size)
+                if k == 0:
+                    bmlogger.run_stop(nbatches - args.warmup_steps, args.mini_batch_size)
                     
                 if args.mlperf_logging:
                     mlperf_logger.barrier()
