@@ -8,7 +8,14 @@
 
 ## Set-up
 
-There are two options for set-up, either using the setup_rnnt.sh script or manually installing packages below.
+There are two options for set-up, either using the Automatic `setup_rnnt.sh` script or manually installing packages. Before proceeding, please ensure conda is installed using the following steps:
+```
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+bash ~/miniconda.sh -b -p ~/miniconda
+eval "$(~/miniconda/bin/conda shell.bash hook)"
+source ~/miniconda/bin/activate 
+conda init
+```
 
 ## Automatic Script
 
@@ -36,12 +43,6 @@ This document provides the detailed instructions to start training RNN-T models 
 
 ### Setting up the conda environment
 ```
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
-bash ~/miniconda.sh -b -p ~/miniconda
-eval "$(~/miniconda/bin/conda shell.bash hook)"
-source ~/miniconda/bin/activate 
-conda init
-
 conda create -n proxy-rnnt python=3.8.3
 conda activate proxy-rnnt
 pip install requests bs4 argparse
