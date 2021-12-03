@@ -36,6 +36,12 @@ This document provides the detailed instructions to start training RNN-T models 
 
 ### Setting up the conda environment
 ```
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh -O ~/miniconda.sh
+bash ~/miniconda.sh -b -p ~/miniconda
+eval "$(~/miniconda/bin/conda shell.bash hook)"
+source ~/miniconda/bin/activate 
+conda init
+
 conda create -n proxy-rnnt python=3.8.3
 conda activate proxy-rnnt
 pip install requests bs4 argparse
