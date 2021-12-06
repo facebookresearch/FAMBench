@@ -30,21 +30,22 @@ def get_model():
     # fairseq_xlmr_large = XLMRModel.from_pretrained(f, checkpoint_file='model.pt')
 
     # TODO use torchscript? jit/script this model?
-    return fairseq_xlmr_large.model
+    return fairseq_xlmr_large
 
 def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=250000, get_y_true=True):
     shape = (batchsize, seq_length)
     x = torch.rand(shape) * vocab_size
     x = x.int()
     if get_y_true:
-        y_true = torch.rand((batchsize, seq_length, 250002)) #TODO: fix this magic number 
+        output_embed_size = 1024
+        y_true = torch.rand((batchsize, seq_length, output_embed_size)) 
         return [x, y_true]
     else:
         return x
 
-def inference(model, x_l, device=None, logger=None):
+def inference(xlmr, x_l, device=None, logger=None):
     """
-    model: model to infer on
+    xlmr: xlmr model to infer on
     x_l: data 
     device->torch.device: optional device (generally a gpu). If None, default to cpu.
     logger->BMLogger: optional logger. If no logger, does not log.
@@ -57,13 +58,14 @@ def inference(model, x_l, device=None, logger=None):
     for x in x_l:
         logger.batch_start()
         if device:
-            x = x.to(device)
-        y_pred = model(x)
+            x = x.to(device) 
+        # xlmr.model.encoder.sentence_encoder(x)['encoder_out'][-1]
+        y_pred = xlmr.extract_features(x, return_all_hiddens=True) # TODO is this right? extract_features?
         logger.batch_stop(time_ms=time_ms(device is not None))
 
-def train(model, x_l, y_true_l, device=None, logger=None):
+def train(xlmr, x_l, y_true_l, device=None, logger=None):
     """
-    model: model to infer on
+    xlmr: xlmr model to train
     x_l: input data
     y_true_l: true labels
     device->torch.device: optional device (generally a gpu). If None, default to cpu.
@@ -76,15 +78,14 @@ def train(model, x_l, y_true_l, device=None, logger=None):
 
     #training loop
     learning_rate = 0.01
-    optimizer = torch.optim.SGD(model.parameters(), lr=learning_rate)
+    optimizer = torch.optim.SGD(xlmr.parameters(), lr=learning_rate)
     for x, y_true in zip(x_l, y_true_l):    
         logger.batch_start()
         if device:
             x = x.to(device)
             y_true = y_true.to(device)
-        y_pred = model(x)
-        y_true = y_true.long()
-        loss = F.cross_entropy(y_pred[0], y_true[:,0,:]) # TODO: fix y_true data input hack
+        y_pred = xlmr.extract_features(x)
+        loss = F.cross_entropy(y_pred, y_true) # TODO does this loss work, and is it same loss as in XLMR paper?
         loss.backward()
         optimizer.step()
         optimizer.zero_grad() 
