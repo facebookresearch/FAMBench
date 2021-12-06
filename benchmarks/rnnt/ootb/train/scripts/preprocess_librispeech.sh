@@ -26,10 +26,11 @@ python $UTILS_DIR/convert_librispeech.py \
     --input_dir $DATASET_DIR/LibriSpeech/train-clean-360 \
     --dest_dir $DATASET_DIR/LibriSpeech/train-clean-360-wav \
     --output_json $DATASET_DIR/LibriSpeech/librispeech-train-clean-360-wav.json
-python $UTILS_DIR/convert_librispeech.py \
-    --input_dir $DATASET_DIR/LibriSpeech/train-other-500 \
-    --dest_dir $DATASET_DIR/LibriSpeech/train-other-500-wav \
-    --output_json $DATASET_DIR/LibriSpeech/librispeech-train-other-500-wav.json
+# Remove train-other-500 which is 500 hours of Librispeech. To reduce set-up time.
+# python $UTILS_DIR/convert_librispeech.py \
+#     --input_dir $DATASET_DIR/LibriSpeech/train-other-500 \
+#     --dest_dir $DATASET_DIR/LibriSpeech/train-other-500-wav \
+#     --output_json $DATASET_DIR/LibriSpeech/librispeech-train-other-500-wav.json
 
 
 python $UTILS_DIR/convert_librispeech.py \

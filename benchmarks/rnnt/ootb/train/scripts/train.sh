@@ -46,8 +46,9 @@ export OMP_NUM_THREADS=1
 : ${BETA2:=0.999}
 : ${LOG_FREQUENCY:=1}
 : ${TRAIN_MANIFESTS:="$DATA_DIR/librispeech-train-clean-100-wav.json \
-                      $DATA_DIR/librispeech-train-clean-360-wav.json \
-                      $DATA_DIR/librispeech-train-other-500-wav.json"}
+                      $DATA_DIR/librispeech-train-clean-360-wav.json"}
+                      # Remove train-other-500, which is 500 hours to reduce set-up time.
+                      # $DATA_DIR/librispeech-train-other-500-wav.json"}
 : ${VAL_MANIFESTS:="$DATA_DIR/librispeech-dev-clean-wav.json"}
 : ${LOG_NORM:=false}
 : ${USE_OLD_VAL:=true}
