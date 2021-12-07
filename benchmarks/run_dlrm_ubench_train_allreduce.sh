@@ -46,15 +46,22 @@ fi
 
 LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_${collective}_${size_name}.log"
 
-echo "=== Launching FB5 ==="
-echo "Benchmark: ${benchmark}"
-echo "Implementation: ${implementation}"
-echo "Mode: ${mode}"
-echo "Collective: ${collective}"
-echo "Size: ${size}"
-echo "Saving FB5 Logger File: ${LOGGER_FILE}"
-echo "Running Command:"
+get_local_rank=$(echo "python3 -c 'import dlrm.ubench.dlrm_ubench_comms_driver as comms; print(comms.get_local_rank())'")
+rank=$(eval $get_local_rank | head -n 1)
+
+if [ $rank -eq 0 ]; then
+  echo "=== Launching FB5 ==="
+  echo "Benchmark: ${benchmark}"
+  echo "Implementation: ${implementation}"
+  echo "Mode: ${mode}"
+  echo "Collective: ${collective}"
+  echo "Size: ${size}"
+  echo "Saving FB5 Logger File: ${LOGGER_FILE}"
+  echo "Running Command:"
+fi
 
 (set -x; python3 "${benchmark}/${implementation}/dlrm_ubench_comms_driver.py" --fb5logger=${LOGGER_FILE} --collective=all_reduce --size=${size} 2>&1)
 
-echo "=== Completed Run ==="
+if [ $rank -eq 0 ]; then
+  echo "=== Completed Run ==="
+fi

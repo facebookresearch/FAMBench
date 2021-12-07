@@ -1,27 +1,27 @@
 import argparse
 import contextlib
 import io
-import itertools
-import os
 import pathlib
 import subprocess
 import sys
-from itertools import product
 from os import fspath
 
-# param ubenches
-p = pathlib.Path(__file__).parent.resolve() / "../../../param/train/compute/pt"
+# param ubenches comms
+p = pathlib.Path(__file__).absolute().parents[3].resolve() / "param/train/comms/pt"
 sys.path.append(fspath(p))
-import dataset
-import pytorch_emb as kemb
-import pytorch_gemm as kgemm
-import pytorch_linear as klinear
+import comms_utils
+from comms import main as comms_main
 
 # FB5 Logger
 p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
 sys.path.append(fspath(p))
 import loggerconstants
 from fb5logger import FB5Logger
+
+
+def get_local_rank():
+    mpi_env_params = comms_utils.read_comms_env_vars()
+    print(mpi_env_params["local_rank"])
 
 
 def main():
@@ -84,13 +84,6 @@ def main():
     """
     sys.argv = cmd.replace("\n", " ").replace("  ", "").split()
 
-    print("")
-    comms_abs_dir_path = str(
-        pathlib.Path(__file__).absolute().parents[3].resolve() / "param/train/comms/pt"
-    )
-    sys.path.append(comms_abs_dir_path)
-    from comms import main as comms_main
-
     fb5logger = FB5Logger(args.fb5logger)
     fb5logger.header(
         "DLRM",
@@ -100,30 +93,31 @@ def main():
         score_metric=loggerconstants.GBPS,
     )
 
+    mpi_env_params = comms_utils.read_comms_env_vars()
+    print("This process's MPI global rank: ", mpi_env_params["global_rank"])
     comms_stdout = io.StringIO()
     with contextlib.redirect_stdout(comms_stdout):
-        fb5logger.run_start()
+        if mpi_env_params["global_rank"] == 0:
+            fb5logger.run_start()
         comms_main()
 
-    output = comms_stdout.getvalue().split("\n")[-3:]
-    output = [_.split("\t") for _ in output]
-    output[1].insert(4, "")
-    output[0][4] = "Latency(us):"
-    output[0].insert(5, "p50")
-    output[0].pop(7)
-    output[0].pop(0)
-    output[1].pop(0)
-    extra_metadata = {}
-    for a, b in zip(output[0], output[1]):
-        extra_metadata[a.lstrip()] = b.lstrip()
-    fb5logger.run_stop(
-        num_batches=num_iter, batch_size=None, extra_metadata=extra_metadata
-    )
-
-    print(comms_stdout.getvalue())
-    print("-- Pretty Format --")
-    for a, b in zip(output[0], output[1]):
-        print("{:<15s}{:>4s}".format(a.lstrip(), b.lstrip()))
+    if mpi_env_params["global_rank"] == 0:
+        print(comms_stdout.getvalue())        
+        output = comms_stdout.getvalue().split("\n")[-3:]
+        output = [" ".join(line.split()).split() for line in output]
+        output[0].pop(2)
+        output[1].insert(3, "")
+        output[0][3] = "Latency(us):"
+        output[0].insert(4, "p50")
+        extra_metadata = {}
+        for a, b in zip(output[0], output[1]):
+            extra_metadata[a.lstrip()] = b.lstrip()
+        fb5logger.run_stop(
+            num_batches=num_iter, batch_size=None, extra_metadata=extra_metadata
+        )
+        print("-- Pretty Format --")
+        for a, b in zip(output[0], output[1]):
+            print("{:<18s}{:>4s}".format(a.lstrip(), b.lstrip()))
 
 
 if __name__ == "__main__":
