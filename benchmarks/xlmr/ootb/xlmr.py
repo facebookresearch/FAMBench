@@ -48,7 +48,7 @@ def inference(xlmr, x_l, device=None, logger=None):
         if device:
             x = x.to(device) 
         # xlmr.model.encoder.sentence_encoder(x)['encoder_out'][-1] # equivalent
-        y_pred = xlmr.extract_features(data) 
+        y_pred = xlmr.extract_features(x) 
         logger.batch_stop(time_ms=time_ms(device is not None))
 
 def train(xlmr, x_l, y_true_l, device=None, logger=None):
