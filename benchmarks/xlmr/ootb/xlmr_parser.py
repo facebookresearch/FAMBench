@@ -5,13 +5,24 @@ import json
 Parse inputs for the XLMR benchmark
 """
 
-def parse_seqlen_dist(seqlen_dist_str):
+def dict_serialize(seqlen_dist_dict):
+    """
+    dict->str
+    Turns {1:'a',2:'b'}->"[[1,'a'],[2,'b']]"
+    Why? Because this format plays nice with shell script that runs xlmr_bench. 
+    Avoids curly braces and spaces that makes shell script str input unhappy. 
+    """
+    seqlen_dist_lst = list(seqlen_dist_dict.items())
+    seqlen_dist_str = json.dumps(seqlen_dist_lst)
+    seqlen_dist_str = seqlen_dist_str.replace(" ", "") # remove spaces
+    return seqlen_dist_str
+
+def dict_deserialize(seqlen_dist_str):
+    """
+    str->dict 
+    """
     seqlen_dist_json = json.loads(seqlen_dist_str)
-
-    # assert that it is in the right format (percentiles and integers)
-
-    return seqlen_dist_json
-
+    return dict(seqlen_dist_json)
 
 def init_argparse() -> argparse.ArgumentParser:
     """

@@ -49,7 +49,6 @@ def inference(xlmr, x_l, device=None, logger=None):
         if device:
             x = x.to(device) 
         # xlmr.model.encoder.sentence_encoder(x)['encoder_out'][-1] # equivalent
-        print(i)
         i += 1
         y_pred = xlmr.extract_features(x) 
         del x
@@ -88,7 +87,6 @@ def generate_dataset(num_batches, batch_size, vocab_size, inference_only, seqlen
     Generates a dataset depending on boolean flags
     inference_only: bool. Whether to return non-empty Y in addition to X. 
     """
-    # TODO: make seqlen_dist and seq_len_max more configurable through command line args
     def generate_single_sample():
         get_y_true_arg = not inference_only
         if(seqlen_dist is not None): # distribution takes priority if it exists
@@ -97,6 +95,7 @@ def generate_dataset(num_batches, batch_size, vocab_size, inference_only, seqlen
             seq_length_arg = uniform_seqlen
         else:
             raise Exception("Cannot have empty sequence length distribution and uniform sequence length")
+        # TODO: Use half kwarg to generate half input data when appropriate
         x, y = xlmr_data.generate_ml_sample(batchsize=batch_size, seq_length=seq_length_arg, vocab_size=vocab_size, get_y_true=get_y_true_arg)
         return x, y
     
@@ -116,9 +115,8 @@ def generate_dataset(num_batches, batch_size, vocab_size, inference_only, seqlen
 def run():
     parser = xlmr_parser.init_argparse()
     args = parser.parse_args()
-
-    print("PRINTING")
-    print(args.seqlen_dist, args.seqlen_dist_max)
+    if args.seqlen_dist is not None:
+        args.seqlen_dist = xlmr_parser.dict_deserialize(args.seqlen_dist)
 
     # check for device
     device=None
@@ -155,9 +153,6 @@ def run():
     x_l, y_true_l = generate_dataset(args.num_batches, args.batch_size, 
         args.vocab_size, args.inference_only, uniform_seqlen=args.sequence_length, 
         seqlen_dist=args.seqlen_dist, seq_len_dist_max=args.seqlen_dist_max)
-    
-    for i in range(10):
-        print(x_l[i].shape)
 
     # warmup
     if args.inference_only:

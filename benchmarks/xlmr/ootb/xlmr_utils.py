@@ -21,7 +21,7 @@ def query_from_percentile_distribution(query_percentile, sorted_percentiles_lst,
     Thus we linearly interpolate between the two, and get p60 -> (15 + 72) / 2 = 43.5. 
     """
 
-    assert len(sorted_percentiles_lst) == sorted_values_lst
+    assert len(sorted_percentiles_lst) == len(sorted_values_lst)
     assert 0 <= query_percentile <= 1
     assert is_monotonic_increasing(sorted_values_lst) 
     assert is_monotonic_increasing(sorted_percentiles_lst) 
