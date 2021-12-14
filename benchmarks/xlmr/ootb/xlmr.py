@@ -43,12 +43,13 @@ def inference(xlmr, x_l, device=None, logger=None):
     if logger is None:
         logger = get_bmlogger() #No op logger
 
-    for x in x_l:
+    for i, x in enumerate(x_l):
         logger.batch_start()
         if device:
             x = x.to(device) 
         # xlmr.model.encoder.sentence_encoder(x)['encoder_out'][-1] # equivalent
         y_pred = xlmr.extract_features(x) 
+        del y_pred 
         logger.batch_stop(time_ms=time_ms(device is not None))
 
 def train(xlmr, x_l, y_true_l, device=None, logger=None):
@@ -67,7 +68,7 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
     #training loop
     learning_rate = 0.01
     optimizer = torch.optim.SGD(xlmr.parameters(), lr=learning_rate)
-    for x, y_true in zip(x_l, y_true_l):    
+    for i, (x, y_true) in enumerate(zip(x_l, y_true_l)):   
         logger.batch_start()
         if device:
             x = x.to(device)
@@ -77,6 +78,9 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad() 
+
+        del y_pred
+        del loss
         logger.batch_stop(time_ms=time_ms(device is not None))
 
 def generate_dataset(num_batches, batch_size, vocab_size, inference_only, seqlen_dist=None, uniform_seqlen=None, seq_len_dist_max=256):
