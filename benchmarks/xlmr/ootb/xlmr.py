@@ -1,8 +1,8 @@
 import torch
-import argparse
 import sys
 import time
 import torch.nn.functional as F
+import xlmr_data, xlmr_parser
 
 # logging
 import pathlib
@@ -22,7 +22,6 @@ def time_ms(use_gpu):
     return time.time_ns() * 1e-6
 
 def get_model():
-    # download from Internet
     fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large')
 
     # load model weights file locally
@@ -31,17 +30,6 @@ def get_model():
 
     # TODO use torchscript? jit/script this model?
     return fairseq_xlmr_large
-
-def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=250000, get_y_true=True):
-    shape = (batchsize, seq_length)
-    x = torch.rand(shape) * vocab_size
-    x = x.int()
-    if get_y_true:
-        output_embed_size = 1024
-        y_true = torch.rand((batchsize, seq_length, output_embed_size)) 
-        return [x, y_true]
-    else:
-        return x
 
 def inference(xlmr, x_l, device=None, logger=None):
     """
@@ -55,12 +43,16 @@ def inference(xlmr, x_l, device=None, logger=None):
     if logger is None:
         logger = get_bmlogger() #No op logger
 
+    i = 0
     for x in x_l:
         logger.batch_start()
         if device:
             x = x.to(device) 
-        # xlmr.model.encoder.sentence_encoder(x)['encoder_out'][-1]
-        y_pred = xlmr.extract_features(x, return_all_hiddens=True) # TODO is this right? extract_features?
+        # xlmr.model.encoder.sentence_encoder(x)['encoder_out'][-1] # equivalent
+        print(i)
+        i += 1
+        y_pred = xlmr.extract_features(x) 
+        del x
         logger.batch_stop(time_ms=time_ms(device is not None))
 
 def train(xlmr, x_l, y_true_l, device=None, logger=None):
@@ -85,32 +77,48 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
             x = x.to(device)
             y_true = y_true.to(device)
         y_pred = xlmr.extract_features(x)
-        loss = F.cross_entropy(y_pred, y_true) # TODO does this loss work, and is it same loss as in XLMR paper?
+        loss = F.cross_entropy(y_pred, y_true) 
         loss.backward()
         optimizer.step()
         optimizer.zero_grad() 
         logger.batch_stop(time_ms=time_ms(device is not None))
 
-def init_argparse() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(
-        description="Benchmark XLM-R model"
-    )
-    parser.add_argument("--logdir", type=str, default=None)
-    parser.add_argument("--inference-only", action="store_true", default=False)
-    parser.add_argument("--famconfig", type=str, default="tiny")
-    parser.add_argument("--use-gpu", action="store_true", default=False)
-    parser.add_argument("--num-batches", type=int, default=10) # num batches to benchmark 
-    parser.add_argument("--warmup-batches", type=int, default=0) # num batches to warmup
-    parser.add_argument("--batch-size", type=int, default=64)
-    parser.add_argument("--sequence-length", type=int, default=64)
-    parser.add_argument("--vocab-size", type=int, default=250000)
-    parser.add_argument("--half-model", action="store_true", default=False)
+def generate_dataset(num_batches, batch_size, vocab_size, inference_only, seqlen_dist=None, uniform_seqlen=None, seq_len_dist_max=256):
+    """
+    Generates a dataset depending on boolean flags
+    inference_only: bool. Whether to return non-empty Y in addition to X. 
+    """
+    # TODO: make seqlen_dist and seq_len_max more configurable through command line args
+    def generate_single_sample():
+        get_y_true_arg = not inference_only
+        if(seqlen_dist is not None): # distribution takes priority if it exists
+            seq_length_arg = xlmr_data.sample_sequence_length(seq_len_dist=seqlen_dist, seq_len_max=seq_len_dist_max)
+        elif(uniform_seqlen is not None):
+            seq_length_arg = uniform_seqlen
+        else:
+            raise Exception("Cannot have empty sequence length distribution and uniform sequence length")
+        x, y = xlmr_data.generate_ml_sample(batchsize=batch_size, seq_length=seq_length_arg, vocab_size=vocab_size, get_y_true=get_y_true_arg)
+        return x, y
     
-    return parser
+    if(num_batches == 0):
+        return []
+
+    X_data = []
+    Y_data = []
+    for _ in range(num_batches):
+        x_sample, y_sample = generate_single_sample()
+        X_data.append(x_sample)
+        if(not inference_only):
+            Y_data.append(y_sample)
+
+    return X_data, Y_data
 
 def run():
-    parser = init_argparse()
+    parser = xlmr_parser.init_argparse()
     args = parser.parse_args()
+
+    print("PRINTING")
+    print(args.seqlen_dist, args.seqlen_dist_max)
 
     # check for device
     device=None
@@ -133,23 +141,23 @@ def run():
     xlmr = get_model()
     if args.inference_only:
         xlmr.eval()
-    if device and args.half_model:
-        xlmr.half()
-    
+
     # use gpu
     if device:
         xlmr = xlmr.to(device)
+    if device and args.half_model:
+        xlmr.half()
     
-    if args.inference_only:
-        x_l_warmup = [generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size, get_y_true=False) for _ in range(args.warmup_batches)]
-        x_l = [generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size, get_y_true=False) for _ in range(args.num_batches)]
-    else:
-        x_l_warmup, y_true_l_warmup = ([], [])
-        x_l, y_true_l = ([], [])
-        if args.warmup_batches > 0:
-            x_l_warmup, y_true_l_warmup = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.warmup_batches)])
-        if args.num_batches > 0:
-            x_l, y_true_l = zip(*[generate_ml_sample(batchsize=args.batch_size, seq_length=args.sequence_length, vocab_size=args.vocab_size) for _ in range(args.num_batches)])
+    # Generate data! y is empty if inference_only. 
+    x_l_warmup, y_true_l_warmup = generate_dataset(args.warmup_batches, args.batch_size, 
+        args.vocab_size, args.inference_only, uniform_seqlen=args.sequence_length, 
+        seqlen_dist=args.seqlen_dist, seq_len_dist_max=args.seqlen_dist_max)
+    x_l, y_true_l = generate_dataset(args.num_batches, args.batch_size, 
+        args.vocab_size, args.inference_only, uniform_seqlen=args.sequence_length, 
+        seqlen_dist=args.seqlen_dist, seq_len_dist_max=args.seqlen_dist_max)
+    
+    for i in range(10):
+        print(x_l[i].shape)
 
     # warmup
     if args.inference_only:
