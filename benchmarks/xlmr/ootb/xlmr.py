@@ -43,15 +43,12 @@ def inference(xlmr, x_l, device=None, logger=None):
     if logger is None:
         logger = get_bmlogger() #No op logger
 
-    i = 0
     for x in x_l:
         logger.batch_start()
         if device:
             x = x.to(device) 
         # xlmr.model.encoder.sentence_encoder(x)['encoder_out'][-1] # equivalent
-        i += 1
-        y_pred = xlmr.extract_features(x) 
-        del x
+        y_pred = xlmr.extract_features(data) 
         logger.batch_stop(time_ms=time_ms(device is not None))
 
 def train(xlmr, x_l, y_true_l, device=None, logger=None):
@@ -98,9 +95,6 @@ def generate_dataset(num_batches, batch_size, vocab_size, inference_only, seqlen
         # TODO: Use half kwarg to generate half input data when appropriate
         x, y = xlmr_data.generate_ml_sample(batchsize=batch_size, seq_length=seq_length_arg, vocab_size=vocab_size, get_y_true=get_y_true_arg)
         return x, y
-    
-    if(num_batches == 0):
-        return []
 
     X_data = []
     Y_data = []
