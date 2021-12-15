@@ -125,7 +125,6 @@ except (ImportError, OSError):
     apex = None
 
 try:
-    import torch2trt
     from torch2trt import torch2trt
 except (ImportError, OSError):
     torch2trt_import_error_msg = traceback.format_exc()
@@ -166,8 +165,10 @@ def time_wrap(use_gpu):
 
 
 def dlrm_wrap(X, lS_o, lS_i, use_gpu, device, ndevices=1):
-    with record_function("DLRM forward"):
-        if use_gpu:  # .cuda()
+    with record_function("DLRM forward"):        
+        if dlrm.quantize_mlp_input_with_half_call:
+            X = X.half()
+        if use_gpu:
             # lS_i can be either a list of tensors or a stacked tensor.
             # Handle each case below:
             if ndevices == 1:
@@ -647,6 +648,7 @@ class DLRM_Net(nn.Module):
         inference_only=False,
         quantize_mlp_with_bit=False,
         quantize_emb_with_bit=False,
+        use_torch2trt_for_mlp=False,
     ):
         super(DLRM_Net, self).__init__()
 
@@ -712,7 +714,12 @@ class DLRM_Net(nn.Module):
             self.bot_l = self.create_mlp(ln_bot, sigmoid_bot)
             self.top_l = self.create_mlp(ln_top, sigmoid_top)
 
-            # quantization
+            # mlp quantization
+            self.quantize_mlp_with_bit = quantize_mlp_with_bit
+            self.use_torch2trt_for_mlp = use_torch2trt_for_mlp
+            self.quantize_mlp_input_with_half_call = use_gpu and not args.use_torch2trt_for_mlp and args.quantize_mlp_with_bit == 16
+
+            # embedding quantization
             self.quantize_emb = False
             self.emb_l_q = []
             self.quantize_bits = 32
@@ -962,7 +969,7 @@ class DLRM_Net(nn.Module):
 
         a2a_req = ext_dist.alltoall(ly, self.n_emb_per_rank)
 
-        with record_function("DLRM bottom nlp forward"):
+        with record_function("DLRM bottom mlp forward"):
             x = self.apply_mlp(dense_x, self.bot_l)
 
         ly = a2a_req.wait()
@@ -973,7 +980,10 @@ class DLRM_Net(nn.Module):
             z = self.interact_features(x, ly)
 
         # top mlp
-        with record_function("DLRM top nlp forward"):
+        with record_function("DLRM top mlp forward"):
+            # quantize top mlp's input to fp16 if PyTorch's built-in fp16 quantization is used.
+            if self.quantize_mlp_input_with_half_call:
+                z = z.half()            
             p = self.apply_mlp(z, self.top_l)
 
         # clamp output if needed
@@ -999,6 +1009,10 @@ class DLRM_Net(nn.Module):
         # interact features (dense and sparse)
         z = self.interact_features(x, ly)
         # print(z.detach().cpu().numpy())
+
+        # quantize top mlp's input to fp16 if PyTorch's built-in fp16 quantization is used.
+        if self.quantize_mlp_input_with_half_call:
+            z = z.half()
 
         # obtain probability of a click (using top mlp)
         p = self.apply_mlp(z, self.top_l)
@@ -1081,6 +1095,9 @@ class DLRM_Net(nn.Module):
         z = parallel_apply(self.interact_features_l, list(zip(itertools.repeat(self.interact_features),x,ly)))
         # debug prints
         # print(z)
+
+        if self.quantize_mlp_input_with_half_call:
+            z = [tens.half() for tens in z]
 
         # top mlp
         # WARNING: Note that the self.top_l is a list of top mlp modules that
@@ -1782,6 +1799,7 @@ def run():
         inference_only=args.inference_only,
         quantize_mlp_with_bit=args.quantize_mlp_with_bit,
         quantize_emb_with_bit=args.quantize_emb_with_bit,
+        use_torch2trt_for_mlp=args.use_torch2trt_for_mlp,
     )
 
     # test prints
@@ -1810,23 +1828,30 @@ def run():
             32,
         ], "only support 8/16/32-bit but got {}".format(args.quantize_mlp_with_bit)
 
-        if args.quantize_mlp_with_bit != 32:
-            assert not use_gpu, (
-                "Cannot run dynamic quantization for mlp "
-                + "with --use-gpu enabled, because DynamicQuantizedLinear's "
-                + "forward call calls 'quantized::linear_dynamic', which cannot "
-                + "run with arguments from the 'CUDA' backend."
-            )
-            if args.quantize_mlp_with_bit in [8]:
-                quantize_dtype = torch.qint8
-            else:
-                quantize_dtype = torch.float16
-            dlrm.top_l = torch.quantization.quantize_dynamic(
-                dlrm.top_l, {torch.nn.Linear}, quantize_dtype
-            )
-            dlrm.bot_l = torch.quantization.quantize_dynamic(
-                dlrm.bot_l, {torch.nn.Linear}, quantize_dtype
-            )
+        if not args.use_torch2trt_for_mlp: 
+            if args.quantize_mlp_with_bit == 16 and use_gpu:            
+                dlrm.top_l = dlrm.top_l.half()
+                dlrm.bot_l = dlrm.bot_l.half()         
+            elif args.quantize_mlp_with_bit in [8, 16]:
+                assert not use_gpu, (
+                    "Cannot run PyTorch's built-in dynamic quantization for mlp "
+                    + "with --use-gpu enabled, because DynamicQuantizedLinear's "
+                    + "forward function calls 'quantized::linear_dynamic', which does not "
+                    + "support the 'CUDA' backend. To convert to and run quantized mlp layers "
+                    + "on the gpu, install torch2trt and enable --use-torch2trt-for-mlp. "
+                    + "Alternatively, disable --use-gpu to use PyTorch's built-in "
+                    + "cpu quantization ops for the mlp layers. "
+                )
+                if args.quantize_mlp_with_bit == 8:
+                    quantize_dtype = torch.qint8
+                else:
+                    quantize_dtype = torch.float16
+                dlrm.top_l = torch.quantization.quantize_dynamic(
+                    dlrm.top_l, {torch.nn.Linear}, quantize_dtype
+                )
+                dlrm.bot_l = torch.quantization.quantize_dynamic(
+                    dlrm.bot_l, {torch.nn.Linear}, quantize_dtype
+                )
 
     # Prep work for embedding tables and model transfer:
     # Handling single-cpu and single-gpu modes
@@ -1863,11 +1888,16 @@ def run():
         dlrm.prepare_parallel_model(ndevices)
 
     if args.use_torch2trt_for_mlp:
-        if torch2trt and use_gpu and args.inference_only and args.quantize_mlp_with_bit == 32:
+        if torch2trt and use_gpu and args.inference_only:
             bot_l_sample_input = torch.ones([1, ln_bot[0]], dtype=torch.float32).cuda()
             top_l_sample_input = torch.ones([1, ln_top[0]], dtype=torch.float32).cuda()
-            dlrm.bot_l = torch2trt.torch2trt(dlrm.bot_l, (bot_l_sample_input,))
-            dlrm.top_l = torch2trt.torch2trt(dlrm.top_l, (top_l_sample_input,))
+            additional_args = {}
+            if args.quantize_mlp_with_bit == 16:
+                additional_args['fp16_mode']=True
+            elif args.quantize_mlp_with_bit == 8:
+                additional_args['int8_mode']=True
+            dlrm.bot_l = torch2trt(dlrm.bot_l, (bot_l_sample_input,), **additional_args)
+            dlrm.top_l = torch2trt(dlrm.top_l, (top_l_sample_input,), **additional_args)                  
         elif torch2trt is None:
             sys.exit("\ntorch2trt module failed to import.\n\n" + torch2trt_import_error_msg)
         else:
@@ -1876,8 +1906,6 @@ def run():
                 error_msg += "--use-gpu must be enabled, "
             if not args.inference_only:
                 error_msg += "--inference-only must be enabled, "
-            if args.quantize_mlp_with_bit != 32:
-                error_msg += "--quantize-mlp-with-bit must be disabled. "
             error_msg = error_msg[:-2] + "."
             sys.exit(error_msg)
 
