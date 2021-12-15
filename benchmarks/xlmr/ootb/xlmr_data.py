@@ -2,7 +2,7 @@ import torch
 import numpy as np
 import xlmr_utils
 """
-Data generation for XLMR benchmark
+Data generation for XLM-R benchmark
 """
 
 def sample_sequence_length(query_percentile = None, seq_len_dist=None, seq_len_max=float('inf')):

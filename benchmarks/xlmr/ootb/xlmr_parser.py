@@ -2,7 +2,7 @@ import argparse
 import json
 
 """
-Parse inputs for the XLMR benchmark
+Parse inputs for the XLM-R benchmark
 """
 
 def dict_serialize(seqlen_dist_dict):

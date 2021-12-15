@@ -11,7 +11,11 @@ p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogging"
 sys.path.append(fspath(p))
 from bmlogger import get_bmlogger
 
-# from fairseq.models.roberta import XLMRModel
+"""
+Main XLM-R Benchmark! 
+
+See xlmr_parser.py for a full list of command line args. 
+"""
 
 def time_ms(use_gpu):
     """
@@ -23,10 +27,6 @@ def time_ms(use_gpu):
 
 def get_model():
     fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large')
-
-    # load model weights file locally
-    # f = '/path/xlmr.large'
-    # fairseq_xlmr_large = XLMRModel.from_pretrained(f, checkpoint_file='model.pt')
 
     # TODO use torchscript? jit/script this model?
     return fairseq_xlmr_large
@@ -47,8 +47,11 @@ def inference(xlmr, x_l, device=None, logger=None):
         logger.batch_start()
         if device:
             x = x.to(device) 
-        # xlmr.model.encoder.sentence_encoder(x)['encoder_out'][-1] # equivalent
         y_pred = xlmr.extract_features(x) 
+
+        # Solves memory leak that causes memory usage to increase with more batches. 
+        # With del, gpu/cpu memory can be reused immediately. 
+        # Without, python GC takes multiple loops to release memory.
         del y_pred 
         logger.batch_stop(time_ms=time_ms(device is not None))
 
@@ -65,7 +68,6 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
     if logger is None:
         logger = get_bmlogger() #No op logger
 
-    #training loop
     learning_rate = 0.01
     optimizer = torch.optim.SGD(xlmr.parameters(), lr=learning_rate)
     for i, (x, y_true) in enumerate(zip(x_l, y_true_l)):   
@@ -78,7 +80,10 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
         loss.backward()
         optimizer.step()
         optimizer.zero_grad() 
-
+        
+        # Solves memory leak that causes memory usage to increase with more batches. 
+        # With del, gpu/cpu memory can be reused immediately. 
+        # Without, python GC takes multiple loops to release memory.
         del y_pred
         del loss
         logger.batch_stop(time_ms=time_ms(device is not None))

@@ -2,7 +2,7 @@
 import numpy as np
 
 """
-Util functions for xlmr benchmark
+Util functions for XLM-R benchmark
 """
 
 def is_monotonic_increasing(x):
