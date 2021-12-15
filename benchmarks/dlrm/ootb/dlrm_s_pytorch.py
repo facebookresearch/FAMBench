@@ -125,7 +125,6 @@ except (ImportError, OSError):
     apex = None
 
 try:
-    import torch2trt
     from torch2trt import torch2trt
 except (ImportError, OSError):
     torch2trt_import_error_msg = traceback.format_exc()
@@ -1810,12 +1809,15 @@ def run():
             32,
         ], "only support 8/16/32-bit but got {}".format(args.quantize_mlp_with_bit)
 
-        if args.quantize_mlp_with_bit != 32:
+        if not args.use_torch2trt_for_mlp and args.quantize_mlp_with_bit != 32:
             assert not use_gpu, (
-                "Cannot run dynamic quantization for mlp "
+                "Cannot run PyTorch's builtin dynamic quantization for mlp "
                 + "with --use-gpu enabled, because DynamicQuantizedLinear's "
-                + "forward call calls 'quantized::linear_dynamic', which cannot "
-                + "run with arguments from the 'CUDA' backend."
+                + "forward call calls 'quantized::linear_dynamic', which does not "
+                + "run with arguments from the 'CUDA' backend. To convert to and run "
+                + "quantized mlp layers on the gpu, install torch2trt and enable "
+                + "--use-torch2trt-for-mlp. Alternatively, disable --use-gpu to use "
+                + "PyTorch's builtin cpu quantization ops for the mlp layers.
             )
             if args.quantize_mlp_with_bit in [8]:
                 quantize_dtype = torch.qint8
@@ -1863,11 +1865,16 @@ def run():
         dlrm.prepare_parallel_model(ndevices)
 
     if args.use_torch2trt_for_mlp:
-        if torch2trt and use_gpu and args.inference_only and args.quantize_mlp_with_bit == 32:
+        if torch2trt and use_gpu and args.inference_only:
             bot_l_sample_input = torch.ones([1, ln_bot[0]], dtype=torch.float32).cuda()
             top_l_sample_input = torch.ones([1, ln_top[0]], dtype=torch.float32).cuda()
-            dlrm.bot_l = torch2trt.torch2trt(dlrm.bot_l, (bot_l_sample_input,))
-            dlrm.top_l = torch2trt.torch2trt(dlrm.top_l, (top_l_sample_input,))
+            additional_args = {}
+            if args.quantize_mlp_with_bit == 16:
+                additional_args['fp16_mode']=True
+            elif args.quantize_mlp_with_bit == 8:
+                additional_args['int8_mode']=True
+            dlrm.bot_l = torch2trt(dlrm.bot_l, (bot_l_sample_input,), **additional_args)
+            dlrm.top_l = torch2trt(dlrm.top_l, (top_l_sample_input,), **additional_args)                  
         elif torch2trt is None:
             sys.exit("\ntorch2trt module failed to import.\n\n" + torch2trt_import_error_msg)
         else:
@@ -1876,8 +1883,6 @@ def run():
                 error_msg += "--use-gpu must be enabled, "
             if not args.inference_only:
                 error_msg += "--inference-only must be enabled, "
-            if args.quantize_mlp_with_bit != 32:
-                error_msg += "--quantize-mlp-with-bit must be disabled. "
             error_msg = error_msg[:-2] + "."
             sys.exit(error_msg)
 
