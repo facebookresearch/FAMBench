@@ -13,10 +13,10 @@ import comms_utils
 from comms import main as comms_main
 
 # FB5 Logger
-p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogging"
 sys.path.append(fspath(p))
 import loggerconstants
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 
 
 def get_local_rank():
@@ -84,8 +84,11 @@ def main():
     """
     sys.argv = cmd.replace("\n", " ").replace("  ", "").split()
 
-    fb5logger = FB5Logger(args.fb5logger)
-    fb5logger.header(
+    if args.fb5logger is not None:
+        bmlogger = get_bmlogger(log_file_path=args.fb5logger)
+    else:
+        bmlogger = get_bmlogger(log_file_path=None) # default to Nop logger
+    bmlogger.header(
         "DLRM",
         "UBENCH",
         "train",
@@ -98,7 +101,7 @@ def main():
     comms_stdout = io.StringIO()
     with contextlib.redirect_stdout(comms_stdout):
         if mpi_env_params["global_rank"] == 0:
-            fb5logger.run_start()
+            bmlogger.run_start()
         comms_main()
 
     if mpi_env_params["global_rank"] == 0:
@@ -112,7 +115,7 @@ def main():
         extra_metadata = {}
         for a, b in zip(output[0], output[1]):
             extra_metadata[a.lstrip()] = b.lstrip()
-        fb5logger.run_stop(
+        bmlogger.run_stop(
             num_batches=num_iter, batch_size=None, extra_metadata=extra_metadata
         )
         print("-- Pretty Format --")

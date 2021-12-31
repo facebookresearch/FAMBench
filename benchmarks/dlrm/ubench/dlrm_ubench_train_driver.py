@@ -15,9 +15,9 @@ import pytorch_emb as kemb
 import pytorch_linear as klinear
 
 # FB5 Logger
-p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogging"
 sys.path.append(fspath(p))
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 import loggerconstants
 
 if __name__ == "__main__":
@@ -58,15 +58,16 @@ if __name__ == "__main__":
 
     #fb5 logging header
     if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
+        bmlogger = get_bmlogger(log_file_path=args.fb5logger)
+    else:
+        bmlogger = get_bmlogger(log_file_path=None) # default to Nop logger
 
     if args.kernel == 'emb':
         print("with emb dataset ", args.dataset)
         global_bytes = 0
         global_elap = 0
-        if args.fb5logger is not None:
-            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.GBPS)
-            fb5logger.run_start()
+        bmlogger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.GBPS)
+        bmlogger.run_start()
         if args.dataset == 'A':
             run_dataset = dataset.emb_A
         elif args.dataset == 'B':
@@ -87,14 +88,13 @@ if __name__ == "__main__":
             global_elap += elap
         if args.fb5logger is not None:
             extra_metadata={"GB/s": global_bytes / global_elap / 1.0e3, "ELAP": global_elap, "BYTES": global_bytes}
-            fb5logger.run_stop(args.steps, batch, extra_metadata=extra_metadata)
+            bmlogger.run_stop(args.steps, batch, extra_metadata=extra_metadata)
     elif args.kernel == 'linear':
         print("with linear dataset ", args.dataset, ", Data type: ", args.dtype)
         global_flops = 0
         global_elap = 0
-        if args.fb5logger is not None:
-            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
-            fb5logger.run_start()
+        bmlogger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
+        bmlogger.run_start()
         if args.dataset == 'A':
             run_dataset = dataset.mlp_A
         elif args.dataset == 'small':
@@ -122,14 +122,13 @@ if __name__ == "__main__":
             global_elap += elap
         if args.fb5logger is not None:
             extra_metadata={"TF/s": global_flops / global_elap / 1.0e12, "ELAP": global_elap, "FLOPS": global_flops}
-            fb5logger.run_stop(args.steps, batch_size, extra_metadata=extra_metadata)
+            bmlogger.run_stop(args.steps, batch_size, extra_metadata=extra_metadata)
     else:
         print("with gemm dataset ", args.dataset, ", Data type: ", args.dtype)
         global_flops = 0
         global_elap = 0
-        if args.fb5logger is not None:
-            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
-            fb5logger.run_start()
+        bmlogger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
+        bmlogger.run_start()
         if args.dataset == 'small':
             small_dataset = [ (256, 1024, 1024), ]
             run_dataset = small_dataset
@@ -148,4 +147,4 @@ if __name__ == "__main__":
             global_elap += elap
         if args.fb5logger is not None:
             extra_metadata={"TF/s": global_flops / global_elap / 1.0e12, "ELAP": global_elap, "FLOPS": global_flops}
-            fb5logger.run_stop(args.steps, run_dataset[0][0], extra_metadata=extra_metadata)
+            bmlogger.run_stop(args.steps, run_dataset[0][0], extra_metadata=extra_metadata)
