@@ -7,7 +7,7 @@ import loggerconstants as constants
 
 def get_bmlogger(log_file_path = None):
     """
-    Get benchmark logger. Call w/o args if want logger that does nothing. 
+    Get benchmark logger. log_file_path = None returns logger that does nothing.  
     """
     t = Nop() if log_file_path is None else BMLogger
     return t(log_file_path)

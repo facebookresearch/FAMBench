@@ -44,9 +44,9 @@ from mlperf import logging
 
 # FB5 Logger
 import pathlib
-p = pathlib.Path(__file__).parent.resolve() / "../../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../../bmlogging"
 sys.path.append(os.fspath(p))
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 import loggerconstants
 
 
@@ -203,9 +203,12 @@ def main():
         logging.configure_logger('RNNT')
         logging.log_start(logging.constants.INIT_START)
 
+    
     if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
-        fb5logger.header("RNN-T", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
+        bmlogger = get_bmlogger(log_file_path=args.fb5logger)
+    else:
+        bmlogger = get_bmlogger(log_file_path = None) # default to Nop logger
+    bmlogger.header("RNN-T", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
 
     assert(torch.cuda.is_available())
     assert args.prediction_frequency is None or args.prediction_frequency % args.log_frequency == 0
@@ -443,8 +446,7 @@ def main():
     step = start_epoch * steps_per_epoch + 1
 
     # FB5 Log for a certain amount of time.
-    if args.fb5logger is not None:
-        fb5logger.run_start()
+    bmlogger.run_start()
     total_batches = 0
     start_time = time.time()
     MAX_TIME = 120.0
@@ -588,7 +590,7 @@ def main():
             if args.mlperf:
                 logging.log_end(logging.constants.RUN_STOP, metadata={'status': 'success'})
             if args.fb5logger is not None:
-                fb5logger.run_stop(total_batches, args.batch_size)
+                bmlogger.run_stop(total_batches, args.batch_size)
             print_once(f'Finished after {args.epochs_this_job} epochs.')
             break
         if 0 < args.epochs_this_job <= epoch - start_epoch:
@@ -602,7 +604,7 @@ def main():
         if args.mlperf:
             logging.log_end(logging.constants.RUN_STOP, metadata={'status': 'aborted'})
         if args.fb5logger is not None:
-            fb5logger.run_stop(total_batches, args.batch_size)
+            bmlogger.run_stop(total_batches, args.batch_size)
 
     if epoch == args.epochs:
         evaluate(epoch, step, val_loader, val_feat_proc, tokenizer.detokenize,
