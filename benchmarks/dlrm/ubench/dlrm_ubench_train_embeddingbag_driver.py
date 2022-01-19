@@ -23,9 +23,9 @@ from fbgemm_gpu.split_table_batched_embeddings_ops import (
     IntNBitTableBatchedEmbeddingBagsCodegen,
 )
 # FB5 Logger
-p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogging"
 sys.path.append(fspath(p))
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 import loggerconstants
 import statistics
 import time
@@ -51,7 +51,7 @@ def generate_requests(
         alpha,
         weights_precision,
         weighted,
-): 
+):
     rs = []
     for it in range(iters):
         print('Generating data for iter ', it, ' of ', iters, end='\r')
@@ -68,7 +68,7 @@ def generate_requests(
                    high=E,
                    size=(B, L),
                    dtype=torch.int32,
-                ) 
+                )
                 (local_indices, _) = torch.sort(local_indices)
             else:
                 local_indices = (np.random.zipf(a=alpha, size=(B , L * 3)) - 1) % E
@@ -90,7 +90,7 @@ def generate_requests(
                 local_indices = permutation.gather(0, local_indices.flatten())
             indices.append(local_indices.reshape(B * L))
             lengths.extend([L] * B)
-        indices = torch.cat(indices)  
+        indices = torch.cat(indices)
         assert indices.shape[0] == sum(t[3] * t[2] for t in run_dataset)
         weights_tensor = (
             None if not weighted else torch.randn(T * B * L, device='cuda')
@@ -166,7 +166,7 @@ def run_emb(args, run_dataset):
         ).cuda()
         emb.initialize_weights()
         forward_only = True
-    else:    
+    else:
         emb = SplitTableBatchedEmbeddingBagsCodegen(
             [(t[0], t[1], managed_option,
                     ComputeDevice.CUDA
@@ -196,7 +196,7 @@ def run_emb(args, run_dataset):
     #warmups
     for (indices, offsets, weights) in warmup_requests:
         emb.forward(indices, offsets, weights)
-    
+
     # forward
     time_per_iter = benchmark_requests(
         requests,
@@ -208,7 +208,7 @@ def run_emb(args, run_dataset):
         flush_gpu_cache_size_mb=args.flush_gpu_cache_size_mb,
     )
     bytes_per_iter = sum(t[3] * t[2] * t[1] for t in run_dataset) * param_size_multiplier
-    
+
     if forward_only:
         return time_per_iter, bytes_per_iter
 
@@ -255,24 +255,26 @@ if __name__ == "__main__":
     parser.add_argument('--output_dtype', default='float', help="data type", choices=["float", "float16"])
     parser.add_argument('--forward_only', dest='forward_only', action='store_true')
     parser.set_defaults(forward_only=False)
-    
-    # FB5 Logging
+
+    # BM Logging
 
     args=parser.parse_args()
 
     print("Measuring the performance of EmbeddingBag on device = ", args.device)
     print("Steps = ", args.steps, " warmups = ", args.warmups)
 
-    #fb5 logging header
+    #bmlogging header
     if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
+        bmlogger = get_bmlogger(log_file_path=args.fb5logger)
+    else:
+        bmlogger = get_bmlogger(log_file_path=None) # default to Nop logger
 
     print("with emb dataset ", args.dataset)
     global_bytes = 0
     global_elap = 0
     if args.fb5logger is not None:
-        fb5logger.header("DLRM", "UBENCH", "train", "emb_" + args.dataset, score_metric=loggerconstants.GBPS)
-        fb5logger.run_start()
+        bmlogger.header("DLRM", "UBENCH", "train", "emb_" + args.dataset, score_metric=loggerconstants.GBPS)
+        bmlogger.run_start()
     if args.dataset == 'small':
         small_dataset = [ (4800000, 56, 34, 2048),
                     (4800000, 56, 34, 4096),]
@@ -280,9 +282,9 @@ if __name__ == "__main__":
     else:
         import ast
         run_dataset = ast.literal_eval(args.dataset)
-    
+
     global_elap, global_bytes = run_emb(args, run_dataset)
-    
+
     if args.fb5logger is not None:
         extra_metadata={"GB/s": global_bytes / global_elap / 1.0e9, "ELAP": global_elap, "BYTES": global_bytes}
-        fb5logger.run_stop(args.steps, run_dataset[0][3], extra_metadata=extra_metadata)
+        bmlogger.run_stop(args.steps, run_dataset[0][3], extra_metadata=extra_metadata)
