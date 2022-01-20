@@ -39,9 +39,9 @@ if [ "$device" == "gpu" ]
 then
   if [ $forwardonly -eq 0 ]
   then
-     (set -x; python dlrm/ubench/dlrm_ubench_train_embeddingbag_driver.py --steps=$steps --device=gpu --fb5logger=${LOGGER_FILE} -d "${dataset}" -t ${dtype} 2>&1)
+     (set -x; python dlrm/ubench/dlrm_ubench_train_embeddingbag_driver.py --steps=$steps --warmups 5 --device=gpu --fb5logger=${LOGGER_FILE} -d "${dataset}" -t ${dtype} 2>&1)
   else
-     (set -x; python dlrm/ubench/dlrm_ubench_train_embeddingbag_driver.py --steps=$steps --device=gpu --fb5logger=${LOGGER_FILE} -d "${dataset}" -t ${dtype} --forward_only 2>&1)
+     (set -x; python dlrm/ubench/dlrm_ubench_train_embeddingbag_driver.py --steps=$steps --warmups 5 --device=gpu --fb5logger=${LOGGER_FILE} -d "${dataset}" -t ${dtype} --forward_only 2>&1)
   fi
 else
   (set -x; python dlrm/ubench/dlrm_ubench_train_driver.py --steps=$steps --device=$device --fb5logger=${LOGGER_FILE} emb --dataset="${dataset}" 2>&1)

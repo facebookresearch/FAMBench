@@ -11,6 +11,8 @@ import torch
 import numpy as np
 p = pathlib.Path(__file__).parent.resolve() / "../../../FBGEMM/fbgemm_gpu"
 sys.path.append(fspath(p))
+import bench.split_table_batched_embeddings_benchmark
+
 from fbgemm_gpu.split_table_batched_embeddings_ops import (
     BoundsCheckMode,
     CacheAlgorithm,
@@ -45,108 +47,16 @@ def str_to_sparsetype(dtype):
     }
     return str_to_sparsetype_dict[dtype]
 
-def generate_requests(
-        iters,
-        run_dataset,
-        alpha,
-        weights_precision,
-        weighted,
-):
-    rs = []
-
-    for it in range(iters):
-        print('Generating data for iter ', it, ' of ', iters, end='\r')
-        indices = []
-        lengths = []
-
-        for t in run_dataset:
-            E = t[0]
-            B = t[3]
-            L = t[2]
-            D = t[1]
-            if alpha <= 1.0:
-                local_indices = torch.randint(
-                   low=0,
-                   high=E,
-                   size=(B, L),
-                   dtype=torch.int32,
-                )
-                (local_indices, _) = torch.sort(local_indices)
-            else:
-                local_indices = (np.random.zipf(a=alpha, size=(B , L * 3)) - 1) % E
-                for b in range(B):
-                    r = set()
-                    for x in local_indices[b]:
-                        if x not in r:
-                            r.add(x)
-                            if len(r) == L:
-                                break
-                    assert (len(r)) == L, "too skewed distribution (alpha too big)"
-                    local_indices[b][:L] = list(r)
-                # shuffle indices so we don't have unintended spatial locality
-                local_indices = torch.as_tensor(local_indices[:, :L])
-                rng = default_rng()
-                permutation = torch.as_tensor(
-                    rng.choice(E, size=local_indices.max().item() + 1, replace=False)
-                )
-                local_indices = permutation.gather(0, local_indices.flatten())
-            indices.append(local_indices.reshape(B * L))
-            lengths.extend([L] * B)
-        indices = torch.cat(indices)
-        assert indices.shape[0] == sum(t[3] * t[2] for t in run_dataset)
-        weights_tensor = (
-            None if not weighted else torch.randn(T * B * L, device='cuda')
-        )
-        rs.append(
-            (
-                indices.long().contiguous().cuda(),
-                torch.tensor(([0] + np.cumsum(lengths).tolist())).long().cuda(),
-            )
-            + (weights_tensor,)
-        )
-    return rs
-
-
-def benchmark_requests(
-    requests,
-    func,
-    flush_gpu_cache_size_mb = 0,
-    check_median = False,
-) -> float:
-    times = []
-    if torch.cuda.is_available():
-        torch.cuda.synchronize()
-        start_event = torch.cuda.Event(enable_timing=True)
-        end_event = torch.cuda.Event(enable_timing=True)
-    for (indices, offsets, weights) in requests:
-        start_time = time.time()
-        if torch.cuda.is_available():
-            if flush_gpu_cache_size_mb:
-                _ = torch.rand(
-                    flush_gpu_cache_size_mb * 1024 * 1024 // 4, dtype=torch.float
-                )
-                torch.cuda.synchronize()
-            start_event.record()
-        func(indices, offsets, weights)
-        if torch.cuda.is_available():
-            end_event.record()
-            torch.cuda.synchronize()
-            it_time = start_event.elapsed_time(end_event) * 1.0e-3
-            times.append(it_time)
-        else:
-            it_time = time.time() - start_time
-            times.append(it_time)
-    avg_time = sum(times) / len(requests)
-    median_time = statistics.median(times)
-    return median_time if check_median else avg_time
-
 
 def run_emb(args, run_dataset):
-    # Assumption is that batch size is the same for all tables
+    # Assumption is that all tablesare identical in terms of shape, number of accesses and batch size
+    assert(len(run_dataset) == 1)
     B = run_dataset[0][3]
-    T = len(run_dataset)
-    Ds = [t[1] for t in run_dataset]
+    T = run_dataset[0][4]
+    Ds = [run_dataset[0][1]] * T
     D = np.average(Ds)
+    E = run_dataset[0][0]
+    L = run_dataset[0][2]
     weights_precision = str_to_sparsetype(args.weights_precision)
     output_dtype = str_to_sparsetype(args.output_dtype)
 
@@ -162,7 +72,7 @@ def run_emb(args, run_dataset):
     if weights_precision == SparseType.INT4 or weights_precision == SparseType.INT8:
         # this is inference only, so no optimzer
         emb = IntNBitTableBatchedEmbeddingBagsCodegen(
-            [("", t[0], t[1], weights_precision, managed_option) for t in run_dataset],
+            [("", E, d, weights_precision, managed_option) for d in Ds],
             bounds_check_mode=BoundsCheckMode.WARNING,
             output_dtype=output_dtype,
         ).cuda()
@@ -170,12 +80,12 @@ def run_emb(args, run_dataset):
         forward_only = True
     else:
         emb = SplitTableBatchedEmbeddingBagsCodegen(
-            [(t[0], t[1], managed_option,
+            [(E, d, managed_option,
                     ComputeDevice.CUDA
                     if torch.cuda.is_available()
                     else ComputeDevice.CPU,
                 )
-                for t in run_dataset
+                for d in Ds
             ],
             optimizer=optimizer,
             learning_rate=0.1,
@@ -187,10 +97,16 @@ def run_emb(args, run_dataset):
 
     param_size_multiplier = PRECISION_SIZE_MULTIPLIER[weights_precision]
 
-
-    requests = generate_requests(
+    print(
+        f"Forward, B: {B}, "
+        f"E: {E}, T: {T}, D: {D}, L: {L}, W: {args.weighted}, "
+    )
+    requests = bench.split_table_batched_embeddings_benchmark.generate_requests(
         args.warmups+args.steps,
-        run_dataset,
+        B,
+        T,
+        L,
+        E,
         alpha=args.alpha,
         weights_precision=args.weights_precision,
         weighted=args.weighted,
@@ -204,7 +120,7 @@ def run_emb(args, run_dataset):
         emb.forward(indices, offsets, weights)
 
     # forward
-    time_per_iter = benchmark_requests(
+    time_per_iter = bench.split_table_batched_embeddings_benchmark.benchmark_requests(
         requests,
         lambda indices, offsets, per_sample_weights: emb.forward(
             indices,
@@ -213,14 +129,14 @@ def run_emb(args, run_dataset):
         ),
         flush_gpu_cache_size_mb=args.flush_gpu_cache_size_mb,
     )
-    bytes_per_iter = sum(t[3] * t[2] * t[1] for t in run_dataset) * param_size_multiplier
+    bytes_per_iter = B * L * D * T * param_size_multiplier
 
     if forward_only:
         return time_per_iter, bytes_per_iter
 
     grad_output = torch.randn(B, sum(Ds)).cuda()
     # backward
-    time_per_iter = benchmark_requests(
+    time_per_iter = bench.split_table_batched_embeddings_benchmark.benchmark_requests(
         requests,
         lambda indices, offsets, per_sample_weights: emb(
             indices.long(),
@@ -229,7 +145,7 @@ def run_emb(args, run_dataset):
         ).backward(grad_output),
         flush_gpu_cache_size_mb=args.flush_gpu_cache_size_mb,
     )
-    bytes_per_iter = sum(t[3] * t[2] * t[1] for t in run_dataset) * param_size_multiplier * 3
+    bytes_per_iter = B * L * D * T * param_size_multiplier * 3
 
     return time_per_iter, bytes_per_iter
 
@@ -282,8 +198,7 @@ if __name__ == "__main__":
         bmlogger.header("DLRM", "UBENCH", "train", "emb_" + args.dataset, score_metric=loggerconstants.GBPS)
         bmlogger.run_start()
     if args.dataset == 'small':
-        small_dataset = [ (4800000, 56, 34, 2048),
-                    (4800000, 56, 34, 4096),]
+        small_dataset = [ (4800000, 56, 34, 2048, 2) ]
         run_dataset = small_dataset
     else:
         import ast

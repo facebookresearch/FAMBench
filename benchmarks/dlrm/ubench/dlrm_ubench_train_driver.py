@@ -78,6 +78,8 @@ if __name__ == "__main__":
         else:
             import ast
             run_dataset = ast.literal_eval(args.dataset)
+            assert(len(run_dataset) == 1)
+            run_dataset = [run_dataset[0][:4]] * run_dataset[0][4]
         for i in range(len(run_dataset)):
             features, embdim, nnz, batch = run_dataset[i]
             elap, total_bytes = kemb.run_single(args, features, embdim, nnz, batch)
@@ -140,10 +142,10 @@ if __name__ == "__main__":
             m, n, k = run_dataset[i]
             elap = kgemm.run_single(args, m, n, k)
             elap /= args.steps
-            
+
             flops = m * n * k
             # this is pure GEMM
-            flops *=2 
+            flops *=2
             global_flops += flops
             global_elap += elap
         if args.fb5logger is not None:
