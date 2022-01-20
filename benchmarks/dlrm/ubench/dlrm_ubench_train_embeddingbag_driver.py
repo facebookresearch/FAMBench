@@ -53,10 +53,12 @@ def generate_requests(
         weighted,
 ):
     rs = []
+
     for it in range(iters):
         print('Generating data for iter ', it, ' of ', iters, end='\r')
         indices = []
         lengths = []
+
         for t in run_dataset:
             E = t[0]
             B = t[3]
@@ -161,7 +163,7 @@ def run_emb(args, run_dataset):
         # this is inference only, so no optimzer
         emb = IntNBitTableBatchedEmbeddingBagsCodegen(
             [("", t[0], t[1], weights_precision, managed_option) for t in run_dataset],
-            bounds_check_mode=BoundsCheckMode.WARNING.value,
+            bounds_check_mode=BoundsCheckMode.WARNING,
             output_dtype=output_dtype,
         ).cuda()
         emb.initialize_weights()
@@ -181,8 +183,10 @@ def run_emb(args, run_dataset):
             weights_precision=weights_precision,
             output_dtype=output_dtype,
         ).cuda()
+    isIntNTableBatched = isinstance(emb, IntNBitTableBatchedEmbeddingBagsCodegen)
 
     param_size_multiplier = PRECISION_SIZE_MULTIPLIER[weights_precision]
+
 
     requests = generate_requests(
         args.warmups+args.steps,
@@ -191,6 +195,8 @@ def run_emb(args, run_dataset):
         weights_precision=args.weights_precision,
         weighted=args.weighted,
     )
+    if isIntNTableBatched:
+        requests = [(a.int(), b.int(), c if c else None) for (a, b, c) in requests]
     warmup_requests, requests = requests[:args.warmups], requests[args.warmups:]
 
     #warmups
@@ -201,8 +207,8 @@ def run_emb(args, run_dataset):
     time_per_iter = benchmark_requests(
         requests,
         lambda indices, offsets, per_sample_weights: emb.forward(
-            indices.long(),
-            offsets.long(),
+            indices,
+            offsets,
             per_sample_weights,
         ),
         flush_gpu_cache_size_mb=args.flush_gpu_cache_size_mb,

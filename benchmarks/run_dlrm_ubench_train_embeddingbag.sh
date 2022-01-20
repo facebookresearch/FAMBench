@@ -4,7 +4,7 @@ dataset='small'
 dtype='float'
 forwardonly=0
 
-usage() { echo "Usage: $0 [-s <steps>] [-d <'cpu'|'gpu'>] [-l <dir to save log>] [-c <config>] [-t <'float'|'float16'|'bfloat16']"; exit 1; }
+usage() { echo "Usage: $0 [-s <steps>] [-d <'cpu'|'gpu'>] [-l <dir to save log>] [-c <config>] [-t <'float'|'float16'|'int8'|'int4']"; exit 1; }
 
 while getopts "s:d:l:c:t:fh" flag
 do
