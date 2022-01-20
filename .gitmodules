@@ -4,3 +4,6 @@
 [submodule "benchmarks/rnnt/ootb/inference/third_party/pybind"]
 	path = benchmarks/rnnt/ootb/inference/third_party/pybind
 	url = https://github.com/pybind/pybind11.git
+[submodule "FBGEMM"]
+	path = FBGEMM
+	url = https://github.com/pytorch/FBGEMM
