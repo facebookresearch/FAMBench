@@ -1,6 +1,6 @@
 steps=1000
 device='cpu'
-dataset='A'
+dataset='small'
 dtype='float'
 TRT=0
 MIGRAPHX=0
