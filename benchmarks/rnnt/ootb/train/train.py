@@ -27,8 +27,6 @@ from apex.optimizers import FusedLAMB
 from apex.parallel import DistributedDataParallel
 
 from common import helpers
-from common.data.dali import sampler as dali_sampler
-from common.data.dali.data_loader import DaliDataLoader
 from common.data.text import Tokenizer
 from common.data import features
 from common.helpers import (Checkpointer, greedy_wer, num_weights, print_once,
@@ -99,8 +97,10 @@ def parse_args():
                        help='Discount factor for exp averaging of model weights')
 
     io = parser.add_argument_group('feature and checkpointing setup')
-    io.add_argument('--dali_device', type=str, choices=['cpu', 'gpu'],
-                    default='cpu', help='Use DALI pipeline for fast data processing')
+    io.add_argument('--dali_device', type=str, choices=['cpu', 'gpu', 'nodali'],
+                    default='nodali', help='Use DALI pipeline for fast data processing')
+    io.add_argument('--num-workers', default=6, type=int,
+                    help='Number of workers used in data-loading')
     io.add_argument('--resume', action='store_true',
                     help='Try to resume from last saved checkpoint.')
     io.add_argument('--ckpt', default=None, type=str,
@@ -313,39 +313,62 @@ def main():
     if args.mlperf:
         logging.log_event(logging.constants.DATA_TRAIN_NUM_BUCKETS, value=args.num_buckets)
 
-    if args.num_buckets is not None:
-        sampler = dali_sampler.BucketingSampler(
-            args.num_buckets,
-            batch_size,
-            world_size,
-            args.epochs,
-            np_rng
-        )
+    if args.dali_device != "nodali":
+        from common.data.dali import sampler as dali_sampler
+        from common.data.dali.data_loader import DaliDataLoader
+
+        if args.num_buckets is not None:
+            sampler = dali_sampler.BucketingSampler(
+                args.num_buckets,
+                batch_size,
+                world_size,
+                args.epochs,
+                np_rng
+            )
+        else:
+            sampler = dali_sampler.SimpleSampler()
+
+        train_loader = DaliDataLoader(gpu_id=args.local_rank,
+                                      dataset_path=args.dataset_dir,
+                                      config_data=train_dataset_kw,
+                                      config_features=train_features_kw,
+                                      json_names=args.train_manifests,
+                                      batch_size=batch_size,
+                                      sampler=sampler,
+                                      grad_accumulation_steps=args.grad_accumulation_steps,
+                                      pipeline_type="train",
+                                      device_type=args.dali_device,
+                                      tokenizer=tokenizer)
+
+        val_loader = DaliDataLoader(gpu_id=args.local_rank,
+                                    dataset_path=args.dataset_dir,
+                                    config_data=val_dataset_kw,
+                                    config_features=val_features_kw,
+                                    json_names=args.val_manifests,
+                                    batch_size=args.val_batch_size,
+                                    sampler=dali_sampler.SimpleSampler(),
+                                    pipeline_type="val",
+                                    device_type=args.dali_device,
+                                    tokenizer=tokenizer)
     else:
-        sampler = dali_sampler.SimpleSampler()
+        from common.data.torchaudio import BucketingSampler, DistributedBucketingSampler
+        from common.data.torchaudio import AudioDataLoader
 
-    train_loader = DaliDataLoader(gpu_id=args.local_rank,
-                                  dataset_path=args.dataset_dir,
-                                  config_data=train_dataset_kw,
-                                  config_features=train_features_kw,
-                                  json_names=args.train_manifests,
-                                  batch_size=batch_size,
-                                  sampler=sampler,
-                                  grad_accumulation_steps=args.grad_accumulation_steps,
-                                  pipeline_type="train",
-                                  device_type=args.dali_device,
-                                  tokenizer=tokenizer)
+        if not args.multi_gpu:
+            sampler = BucketingSampler(train_dataset,
+                                       batch_size=batch_size)
+        else:
+            sampler = DistributedBucketingSampler(train_dataset,
+                                                  batch_size=batch_size,
+                                                  num_replicas=world_size,
+                                                  rank=args.local_rank)
+        train_loader = AudioDataLoader(train_dataset,
+                                       num_workers=args.num_workers,
+                                       batch_sampler=sampler)
 
-    val_loader = DaliDataLoader(gpu_id=args.local_rank,
-                                dataset_path=args.dataset_dir,
-                                config_data=val_dataset_kw,
-                                config_features=val_features_kw,
-                                json_names=args.val_manifests,
-                                batch_size=args.val_batch_size,
-                                sampler=dali_sampler.SimpleSampler(),
-                                pipeline_type="val",
-                                device_type=args.dali_device,
-                                tokenizer=tokenizer)
+        val_loader = AudioDataLoader(test_dataset,
+                                     batch_size=batch_size,
+                                     num_workers=args.num_workers)
 
     train_feat_proc = train_augmentations
     val_feat_proc = val_augmentations
