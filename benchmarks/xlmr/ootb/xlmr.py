@@ -128,14 +128,14 @@ def run():
         device = torch.device("cuda", 0)
 
     # prep logger
-    bmlogger = get_bmlogger() # default to Nop logger
+    bmlogger = get_bmlogger(log_file_path=None) # default to Nop logger
     if args.logdir is not None:
         mode = "train"
         if(args.inference_only):
             mode = "eval"
 
         logpath = "{}/XLMR_OOTB_{}_{}.log".format(args.logdir, mode, args.famconfig)
-        bmlogger = get_bmlogger(logpath)
+        bmlogger = get_bmlogger(log_file_path=logpath)
         bmlogger.header("XLMR", "OOTB", mode, args.famconfig)
 
     # prep model and data

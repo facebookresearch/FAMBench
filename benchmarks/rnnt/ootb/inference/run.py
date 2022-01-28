@@ -25,9 +25,9 @@ MLPERF_CONF = Path(os.path.dirname(os.path.realpath(__file__))) / "../../mlperf.
 MLPERF_CONF = MLPERF_CONF.resolve()
 
 # FB5 Logger
-p = Path(__file__).parent.resolve() / "../../../../fb5logging"
+p = Path(__file__).parent.resolve() / "../../../../bmlogging"
 sys.path.append(os.fspath(p))
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 import loggerconstants
 
 
@@ -62,8 +62,10 @@ def main():
     args = get_args()
 
     if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
-        fb5logger.header("RNN-T", "OOTB", "infer", args.fb5config, score_metric=loggerconstants.EXPS)
+        bmlogger = get_bmlogger(log_file_path=args.fb5logger)
+    else:
+        bmlogger = get_bmlogger(log_file_path = None) # default to Nop logger
+    bmlogger.header("RNN-T", "OOTB", "infer", args.fb5config, score_metric=loggerconstants.EXPS)
 
     if args.backend == "pytorch":
         from pytorch_SUT import PytorchSUT
@@ -91,12 +93,11 @@ def main():
     log_settings.log_output = log_output_settings
 
     print("Running Loadgen test...")
-    if args.fb5logger is not None:
-        fb5logger.run_start()
+    bmlogger.run_start()
     lg.StartTestWithLogSettings(sut.sut, sut.qsl.qsl, settings, log_settings)
-    if args.fb5logger is not None:
-        nbatches = sut.qsl.count
-        fb5logger.run_stop(nbatches, 1)
+
+    nbatches = sut.qsl.count
+    bmlogger.run_stop(nbatches, 1)
 
     if args.accuracy:
         cmd = f"python3 accuracy_eval.py --log_dir {log_path} --dataset_dir {args.dataset_dir} --manifest {args.manifest}"

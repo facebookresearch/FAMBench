@@ -1192,9 +1192,9 @@ def inference(
         scores = []
         targets = []
 
-    bmlogger = get_bmlogger() # default to Nop logger
+    bmlogger = get_bmlogger(log_file_path=None) # default to Nop logger
     if args.fb5logger is not None:
-        bmlogger = get_bmlogger(args.fb5logger)
+        bmlogger = get_bmlogger(log_file_path=args.fb5logger)
         bmlogger.header("DLRM", "OOTB", "eval", args.fb5config, score_metric=loggerconstants.EXPS)
 
     for i, testBatch in enumerate(test_ld):
