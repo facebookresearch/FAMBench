@@ -25,7 +25,7 @@ This suite captures benchmarks across multiple devices, across multiple precisio
 ### Models
 This suite contains the following benchmarks:
 - Recommendation: DLRM
-- Text: XLM-R (WIP)
+- Text: XLM-R 
 - Vision: CVT (Planned)
 - Text: OSCAR (Planned)
 - Speech: RNN-T (WIP)
