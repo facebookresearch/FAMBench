@@ -89,6 +89,9 @@ import mlperf_logger
 # numpy
 import numpy as np
 import optim.rwsadagrad as RowWiseSparseAdagrad
+
+# projection
+import project
 import sklearn.metrics
 
 # pytorch
@@ -626,6 +629,7 @@ class DLRM_Net(nn.Module):
         ln_emb=None,
         ln_bot=None,
         ln_top=None,
+        proj_size=0,
         arch_interaction_op=None,
         arch_interaction_itself=False,
         sigmoid_bot=-1,
@@ -662,6 +666,7 @@ class DLRM_Net(nn.Module):
             # save arguments
             self.ntables = len(ln_emb)
             self.m_spa = m_spa
+            self.proj_size = proj_size
             self.use_gpu = use_gpu
             self.use_fbgemm_gpu = use_fbgemm_gpu
             self.fbgemm_gpu_codegen_pref = fbgemm_gpu_codegen_pref
@@ -713,6 +718,9 @@ class DLRM_Net(nn.Module):
 
             self.bot_l = self.create_mlp(ln_bot, sigmoid_bot)
             self.top_l = self.create_mlp(ln_top, sigmoid_top)
+
+            if proj_size > 0:
+                self.proj_l = project.create_proj(len(ln_emb) + 1, proj_size)
 
             # mlp quantization
             self.quantize_mlp_with_bit = quantize_mlp_with_bit
@@ -893,22 +901,25 @@ class DLRM_Net(nn.Module):
             (batch_size, d) = x.shape
             T = torch.cat([x] + ly, dim=1).view((batch_size, -1, d))
             # perform a dot product
-            Z = torch.bmm(T, torch.transpose(T, 1, 2))
-            # append dense feature with the interactions (into a row vector)
-            # approach 1: all
-            # Zflat = Z.view((batch_size, -1))
-            # approach 2: unique
-            _, ni, nj = Z.shape
-            # approach 1: tril_indices
-            # offset = 0 if self.arch_interaction_itself else -1
-            # li, lj = torch.tril_indices(ni, nj, offset=offset)
-            # approach 2: custom
-            offset = 1 if self.arch_interaction_itself else 0
-            li = torch.tensor([i for i in range(ni) for j in range(i + offset)])
-            lj = torch.tensor([j for i in range(nj) for j in range(i + offset)])
-            Zflat = Z[:, li, lj]
-            # concatenate dense features and interactions
-            R = torch.cat([x] + [Zflat], dim=1)
+            if self.proj_size > 0:
+                R = project.project(T, x, self.proj_l)
+            else:
+                Z = torch.bmm(T, torch.transpose(T, 1, 2))
+                # append dense feature with the interactions (into a row vector)
+                # approach 1: all
+                # Zflat = Z.view((batch_size, -1))
+                # approach 2: unique
+                _, ni, nj = Z.shape
+                # approach 1: tril_indices
+                # offset = 0 if self.arch_interaction_itself else -1
+                # li, lj = torch.tril_indices(ni, nj, offset=offset)
+                # approach 2: custom
+                offset = 1 if self.arch_interaction_itself else 0
+                li = torch.tensor([i for i in range(ni) for j in range(i + offset)])
+                lj = torch.tensor([j for i in range(nj) for j in range(i + offset)])
+                Zflat = Z[:, li, lj]
+                # concatenate dense features and interactions
+                R = torch.cat([x] + [Zflat], dim=1)
         elif self.arch_interaction_op == "cat":
             # concatenation features (into a row vector)
             R = torch.cat([x] + ly, dim=1)
@@ -983,7 +994,7 @@ class DLRM_Net(nn.Module):
         with record_function("DLRM top mlp forward"):
             # quantize top mlp's input to fp16 if PyTorch's built-in fp16 quantization is used.
             if self.quantize_mlp_input_with_half_call:
-                z = z.half()            
+                z = z.half()
             p = self.apply_mlp(z, self.top_l)
 
         # clamp output if needed
@@ -1344,6 +1355,7 @@ def run():
     parser.add_argument(
         "--arch-embedding-size", type=dash_separated_ints, default="4-3-2"
     )
+    parser.add_argument("--arch-project-size", type=int, default=0)
     # j will be replaced with the table number
     parser.add_argument("--arch-mlp-bot", type=dash_separated_ints, default="4-3-2")
     parser.add_argument("--arch-mlp-top", type=dash_separated_ints, default="4-2-1")
@@ -1615,7 +1627,8 @@ def run():
         nbatches = args.num_batches if args.num_batches > 0 else len(train_ld)
         nbatches_test = len(test_ld)
 
-    assert args.num_batches > args.warmup_steps, (f"Change --warmup-steps={args.warmup_steps} to be lower than --num-batches={args.num_batches}.")
+    nbatches_in_use = nbatches_test if args.inference_only else nbatches
+    assert nbatches_in_use > args.warmup_steps, (f"Change --warmup-steps={args.warmup_steps} to be lower than {nbatches_in_use}.")
 
     args.ln_emb = ln_emb.tolist()
     if args.mlperf_logging:
@@ -1637,10 +1650,13 @@ def run():
         # approach 1: all
         # num_int = num_fea * num_fea + m_den_out
         # approach 2: unique
-        if args.arch_interaction_itself:
-            num_int = (num_fea * (num_fea + 1)) // 2 + m_den_out
+        if args.arch_project_size > 0:
+            num_int = num_fea * args.arch_project_size + m_den_out
         else:
-            num_int = (num_fea * (num_fea - 1)) // 2 + m_den_out
+            if args.arch_interaction_itself:
+                num_int = (num_fea * (num_fea + 1)) // 2 + m_den_out
+            else:
+                num_int = (num_fea * (num_fea - 1)) // 2 + m_den_out
     elif args.arch_interaction_op == "cat":
         num_int = num_fea * m_den_out
     else:
@@ -1777,6 +1793,7 @@ def run():
         ln_emb,
         ln_bot,
         ln_top,
+        args.arch_project_size,
         arch_interaction_op=args.arch_interaction_op,
         arch_interaction_itself=args.arch_interaction_itself,
         sigmoid_bot=-1,
