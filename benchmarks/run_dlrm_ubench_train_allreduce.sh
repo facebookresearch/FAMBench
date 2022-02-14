@@ -48,6 +48,7 @@ LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_${collective}_${s
 
 get_local_rank=$(echo "python3 -c 'import dlrm.ubench.dlrm_ubench_comms_driver as comms; print(comms.get_local_rank())'")
 rank=$(eval $get_local_rank | head -n 1)
+master_ip="${5:-localhost}"
 
 if [ $rank -eq 0 ]; then
   echo "=== Launching FB5 ==="
@@ -60,7 +61,7 @@ if [ $rank -eq 0 ]; then
   echo "Running Command:"
 fi
 
-(set -x; python3 "${benchmark}/${implementation}/dlrm_ubench_comms_driver.py" --fb5logger=${LOGGER_FILE} --collective=all_reduce --size=${size} 2>&1)
+(set -x; python3 "${benchmark}/${implementation}/dlrm_ubench_comms_driver.py" --master_ip=${master_ip} --fb5logger=${LOGGER_FILE} --collective=all_reduce --size=${size} 2>&1)
 
 if [ $rank -eq 0 ]; then
   echo "=== Completed Run ==="
