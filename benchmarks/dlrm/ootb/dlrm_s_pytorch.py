@@ -710,6 +710,7 @@ class DLRM_Net(nn.Module):
                 )
                 self.local_emb_slice = ext_dist.get_my_slice(n_emb)
                 self.local_emb_indices = list(range(n_emb))[self.local_emb_slice]
+                self.local_ntables = len(self.local_emb_indices)
 
             # create operators
             self.emb_l, self.v_W_l = self.create_emb(m_spa, ln_emb, weighted_pooling)
@@ -961,7 +962,7 @@ class DLRM_Net(nn.Module):
         lS_o = lS_o[self.local_emb_slice]
         lS_i = lS_i[self.local_emb_slice]
 
-        if (self.ntables != len(lS_o)) or (self.ntables != len(lS_i)):
+        if (self.local_ntables != len(lS_o)) or (self.local_ntables != len(lS_i)):
             sys.exit(
                 "ERROR: corrupted model input detected in distributed_forward call"
             )
@@ -975,7 +976,7 @@ class DLRM_Net(nn.Module):
         # corresponding to all embedding lookups, but part of the batch on each rank.
         # Therefore, matching the distribution of output of bottom mlp, so that both
         # could be used for subsequent interactions on each device.
-        if self.ntables != len(ly):
+        if self.local_ntables != len(ly):
             sys.exit("ERROR: corrupted intermediate result in distributed_forward call")
 
         a2a_req = ext_dist.alltoall(ly, self.n_emb_per_rank)
