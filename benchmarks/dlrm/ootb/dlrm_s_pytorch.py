@@ -160,6 +160,68 @@ with warnings.catch_warnings():
 
 exc = getattr(builtins, "IOError", "FileNotFoundError")
 
+import sqlite3
+import struct
+def setup_db_connection(args):
+
+    cache_table_name = "IO_DATA"
+
+    cache_file_name = pathlib.Path(__file__).absolute().parents[0].resolve() / "dlrm_ml_cache.db"
+    db_connection = sqlite3.connect(cache_file_name)
+    db_connection.execute('pragma journal_mode=wal')
+    db_cursor = db_connection.cursor()
+    db_cursor.execute("CREATE TABLE IF NOT EXISTS IO_DATA (minibatch_size INT, X blob, lS_o blob, lS_i blob, lS_i_lengths blob, Z blob, T blob)")    
+    cache_exists = db_cursor.execute("SELECT count(*) FROM IO_DATA").fetchone()[0]
+    cache_exists = True if cache_exists > 0 else False
+    if not cache_exists:
+        print("Creating ",cache_file_name)
+    else:
+        print("Using ", cache_file_name)    
+    return db_connection, cache_exists, cache_table_name
+
+def disk_cache_store(db_connection, X, lS_o, lS_i, Z, T):
+    cache_table_name = "IO_DATA"
+    db_cursor = db_connection.cursor()
+    lS_i_lengths = np.array(list(map(len, lS_i)))
+    byte_arrays_l = []
+    # X - 2d tensor
+    # lS_o - list of tensors
+    # ls_i - list of tensors
+    for data in [X, lS_o, lS_i, lS_i_lengths, Z, T]:
+        ba = bytearray()
+        if isinstance(data, list) and isinstance(data[0], torch.Tensor):
+            data = torch.cat(data)
+        if isinstance(data, torch.Tensor):
+            data = data.flatten()
+            data = data.data.cpu().numpy()
+        for val in data:
+            ba += struct.pack("d", float(val))
+        byte_arrays_l.append(ba)
+    record = tuple([X.shape[0]] + byte_arrays_l)
+    db_cursor.execute("BEGIN")
+    db_cursor.execute("INSERT INTO " + cache_table_name + " VALUES (?,?,?,?,?,?,?)", record)
+    db_connection.commit()
+
+def disk_cache_get(db_connection, cache_table_name = "IO_DATA"):
+    db_cursor = db_connection.cursor()
+
+    db_cursor.execute("SELECT * FROM " + cache_table_name)
+    records = db_cursor.fetchall()
+    minibatch_size = int(records[0][0])
+
+    train_ld = []
+    for record in records:
+        (X, lS_o, lS_i_flat, lS_i_lengths, Z, T) = [np.frombuffer(rec, dtype=np.double) for rec in record[1:]]
+        segment_indices_list = np.cumsum([0] + list(map(int, lS_i_lengths))).tolist()
+        lS_i = [torch.tensor(lS_i_flat[s:e].tolist(), dtype=torch.long) for s, e in zip(segment_indices_list[:-1], segment_indices_list[1:])]
+        row_size = minibatch_size
+        lS_o = [torch.tensor(lS_o[x:x+row_size].tolist(), dtype=torch.long) for x in range(0,len(lS_o),row_size)]
+        X = torch.tensor(X.reshape(minibatch_size, -1).tolist(), dtype=torch.float32)
+        T = torch.tensor(T.reshape(minibatch_size, -1).tolist(), dtype=torch.float32)
+        Z = torch.tensor(Z.reshape(minibatch_size, -1).tolist(), dtype=torch.float32)
+        train_ld.append((X, lS_o, lS_i, Z, T))
+    test_ld = train_ld
+    return (train_ld, test_ld)
 
 def time_wrap(use_gpu):
     if use_gpu:
@@ -1159,7 +1221,6 @@ class DLRM_Net(nn.Module):
         for param in self.top_l.parameters():
             print(param.detach().cpu().numpy())
 
-
 def dash_separated_ints(value):
     vals = value.split("-")
     for val in vals:
@@ -1483,6 +1544,8 @@ def run():
     parser.add_argument("--fb5logger", type=str, default=None)
     parser.add_argument("--fb5config", type=str, default="tiny")
 
+    parser.add_argument("--acceptance-test", action="store_true", default=False)
+
     global args
     global nbatches
     global nbatches_test
@@ -1596,7 +1659,23 @@ def run():
         mlperf_logger.log_start(key=mlperf_logger.constants.RUN_START)
         mlperf_logger.barrier()
 
-    if args.data_generation == "dataset":
+    use_disk_cache = False
+    make_disk_cache = False 
+    if args.acceptance_test:
+        db_connection, disk_cache_exists, db_cache_table_name = setup_db_connection(args)
+        if disk_cache_exists:
+            use_disk_cache = True
+            print("Using acceptance test reference db.")
+        else:
+            make_disk_cache = True  
+            print("MAKING acceptance test reference db.")       
+
+    if use_disk_cache:
+        train_ld, test_ld = disk_cache_get(db_connection)
+        nbatches = len(train_ld)
+        ln_emb = np.fromstring(args.arch_embedding_size, dtype=int, sep="-")
+        m_den = ln_bot[0]
+    elif args.data_generation == "dataset":
         train_data, train_ld, test_data, test_ld = dp.make_criteo_data_and_loaders(args)
         table_feature_map = {idx: idx for idx in range(len(train_data.counts))}
         nbatches = args.num_batches if args.num_batches > 0 else len(train_ld)
@@ -1818,6 +1897,20 @@ def run():
         quantize_emb_with_bit=args.quantize_emb_with_bit,
         use_torch2trt_for_mlp=args.use_torch2trt_for_mlp,
     )
+
+    if args.acceptance_test:
+        for i, e in enumerate(dlrm.emb_l):
+            dlrm.emb_l[i].weight = Parameter(torch.ones(e.weight.size(), dtype = e.weight.dtype))
+        for i, e in enumerate(dlrm.bot_l):      
+            if not isinstance(dlrm.bot_l[i], nn.Linear):
+                continue
+            dlrm.bot_l[i].weight = Parameter(torch.ones(e.weight.size(), dtype = e.weight.dtype))
+            dlrm.bot_l[i].bias = Parameter(torch.ones(e.bias.size(), dtype = e.bias.dtype))
+        for i, e in enumerate(dlrm.top_l):            
+            if not isinstance(dlrm.top_l[i], nn.Linear):
+                continue            
+            dlrm.top_l[i].weight = Parameter(torch.ones(e.weight.size(), dtype = e.weight.dtype))
+            dlrm.top_l[i].bias = Parameter(torch.ones(e.bias.size(), dtype = e.bias.dtype))
 
     # test prints
     if args.debug_mode:
@@ -2149,8 +2242,11 @@ def run():
 
                     if k == 0 and j == args.warmup_steps:
                         bmlogger.run_start()
-
-                    X, lS_o, lS_i, T, W, CBPP = unpack_batch(inputBatch)
+                    
+                    if args.acceptance_test and use_disk_cache:
+                        X, lS_o, lS_i, Z_ref, T = inputBatch
+                    else:
+                        X, lS_o, lS_i, T, W, CBPP = unpack_batch(inputBatch)
 
                     if args.mlperf_logging:
                         current_time = time_wrap(use_gpu)
@@ -2185,6 +2281,15 @@ def run():
                         device,
                         ndevices=ndevices,
                     )
+                    if args.acceptance_test:
+                        if make_disk_cache:
+                            disk_cache_store(db_connection, X, lS_o, lS_i, Z, T) 
+                        else:
+                            if torch.equal(Z, Z_ref):
+                                print("Acceptance test PASSED!")
+                            else:
+                                print("Acceptance test FAILED!")
+                        sys.exit()                       
 
                     if ext_dist.my_size > 1:
                         T = T[ext_dist.get_my_slice(mbs)]
