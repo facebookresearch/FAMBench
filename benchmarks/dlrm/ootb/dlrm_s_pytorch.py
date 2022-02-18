@@ -170,7 +170,7 @@ def setup_db_connection(args):
     db_connection = sqlite3.connect(cache_file_name)
     db_connection.execute('pragma journal_mode=wal')
     db_cursor = db_connection.cursor()
-    db_cursor.execute("CREATE TABLE IF NOT EXISTS IO_DATA (minibatch_size INT, X blob, lS_o blob, lS_i blob, lS_i_lengths blob, Z blob, T blob)")    
+    db_cursor.execute("CREATE TABLE IF NOT EXISTS IO_DATA (minibatch_size INT, X blob, lS_o blob, lS_i blob, lS_i_lengths blob, Z blob, T blob, ln_emb blob)")    
     cache_exists = db_cursor.execute("SELECT count(*) FROM IO_DATA").fetchone()[0]
     cache_exists = True if cache_exists > 0 else False
     if not cache_exists:
@@ -179,7 +179,7 @@ def setup_db_connection(args):
         print("Using ", cache_file_name)    
     return db_connection, cache_exists, cache_table_name
 
-def disk_cache_store(db_connection, X, lS_o, lS_i, Z, T):
+def disk_cache_store(db_connection, X, lS_o, lS_i, Z, T, ln_emb):
     cache_table_name = "IO_DATA"
     db_cursor = db_connection.cursor()
     lS_i_lengths = np.array(list(map(len, lS_i)))
@@ -187,7 +187,7 @@ def disk_cache_store(db_connection, X, lS_o, lS_i, Z, T):
     # X - 2d tensor
     # lS_o - list of tensors
     # ls_i - list of tensors
-    for data in [X, lS_o, lS_i, lS_i_lengths, Z, T]:
+    for data in [X, lS_o, lS_i, lS_i_lengths, Z, T, ln_emb]:
         ba = bytearray()
         if isinstance(data, list) and isinstance(data[0], torch.Tensor):
             data = torch.cat(data)
@@ -199,7 +199,7 @@ def disk_cache_store(db_connection, X, lS_o, lS_i, Z, T):
         byte_arrays_l.append(ba)
     record = tuple([X.shape[0]] + byte_arrays_l)
     db_cursor.execute("BEGIN")
-    db_cursor.execute("INSERT INTO " + cache_table_name + " VALUES (?,?,?,?,?,?,?)", record)
+    db_cursor.execute("INSERT INTO " + cache_table_name + " VALUES (?,?,?,?,?,?,?,?)", record)
     db_connection.commit()
 
 def disk_cache_get(db_connection, cache_table_name = "IO_DATA"):
@@ -211,7 +211,8 @@ def disk_cache_get(db_connection, cache_table_name = "IO_DATA"):
 
     train_ld = []
     for record in records:
-        (X, lS_o, lS_i_flat, lS_i_lengths, Z, T) = [np.frombuffer(rec, dtype=np.double) for rec in record[1:]]
+        (X, lS_o, lS_i_flat, lS_i_lengths, Z, T, ln_emb) = [np.frombuffer(rec, dtype=np.double) for rec in record[1:]]
+        ln_emb = ln_emb.astype(int)
         segment_indices_list = np.cumsum([0] + list(map(int, lS_i_lengths))).tolist()
         lS_i = [torch.tensor(lS_i_flat[s:e].tolist(), dtype=torch.long) for s, e in zip(segment_indices_list[:-1], segment_indices_list[1:])]
         row_size = minibatch_size
@@ -221,7 +222,7 @@ def disk_cache_get(db_connection, cache_table_name = "IO_DATA"):
         Z = torch.tensor(Z.reshape(minibatch_size, -1).tolist(), dtype=torch.float32)
         train_ld.append((X, lS_o, lS_i, Z, T))
     test_ld = train_ld
-    return (train_ld, test_ld)
+    return (train_ld, test_ld, ln_emb)
 
 def time_wrap(use_gpu):
     if use_gpu:
@@ -1667,13 +1668,12 @@ def run():
             use_disk_cache = True
             print("Using acceptance test reference db.")
         else:
-            make_disk_cache = True  
-            print("MAKING acceptance test reference db.")       
+            make_disk_cache = True
+            print("MAKING acceptance test reference db.")  
 
     if use_disk_cache:
-        train_ld, test_ld = disk_cache_get(db_connection)
+        train_ld, test_ld, ln_emb = disk_cache_get(db_connection)
         nbatches = len(train_ld)
-        ln_emb = np.fromstring(args.arch_embedding_size, dtype=int, sep="-")
         m_den = ln_bot[0]
     elif args.data_generation == "dataset":
         train_data, train_ld, test_data, test_ld = dp.make_criteo_data_and_loaders(args)
@@ -1911,6 +1911,8 @@ def run():
                 continue            
             dlrm.top_l[i].weight = Parameter(torch.ones(e.weight.size(), dtype = e.weight.dtype))
             dlrm.top_l[i].bias = Parameter(torch.ones(e.bias.size(), dtype = e.bias.dtype))
+    if use_gpu:
+        torch.cuda.synchronize()
 
     # test prints
     if args.debug_mode:
@@ -2283,7 +2285,7 @@ def run():
                     )
                     if args.acceptance_test:
                         if make_disk_cache:
-                            disk_cache_store(db_connection, X, lS_o, lS_i, Z, T) 
+                            disk_cache_store(db_connection, X, lS_o, lS_i, Z, T, ln_emb) 
                         else:
                             if torch.equal(Z, Z_ref):
                                 print("Acceptance test PASSED!")
