@@ -2287,7 +2287,7 @@ def run():
                         if make_disk_cache:
                             disk_cache_store(db_connection, X, lS_o, lS_i, Z, T, ln_emb) 
                         else:
-                            if torch.equal(Z, Z_ref):
+                            if torch.equal(Z.cpu(), Z_ref.cpu()):
                                 print("Acceptance test PASSED!")
                             else:
                                 print("Acceptance test FAILED!")
