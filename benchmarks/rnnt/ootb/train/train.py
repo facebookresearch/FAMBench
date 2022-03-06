@@ -73,6 +73,8 @@ def parse_args():
     training.add_argument('--hidden_hidden_bias_scale', type=float, help='If set, overwrites value in config.')
 
     optim = parser.add_argument_group('optimization setup')
+    #optim.add_argument('--sample-rate', default=16000, type=int, help='Sample rate')
+
     optim.add_argument('--batch_size', default=128, type=int,
                        help='Effective batch size per GPU (might require grad accumulation')
     optim.add_argument('--val_batch_size', default=2, type=int,
@@ -207,7 +209,7 @@ def main():
         fb5logger = FB5Logger(args.fb5logger)
         fb5logger.header("RNN-T", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
 
-    assert(torch.cuda.is_available())
+    #assert(torch.cuda.is_available())
     assert args.prediction_frequency is None or args.prediction_frequency % args.log_frequency == 0
 
     torch.backends.cudnn.benchmark = args.cudnn_benchmark
@@ -295,10 +297,14 @@ def main():
     tokenizer_kw = config.tokenizer(cfg)
     tokenizer = Tokenizer(**tokenizer_kw)
 
+
     class PermuteAudio(torch.nn.Module):
         def forward(self, x):
             return (x[0].permute(2, 0, 1), *x[1:])
 
+    #OUTPUT: specaugm_kw {'freq_masks': 2, 'min_freq': 0, 'max_freq': 20, 'time_masks': 10, 'min_time': 0, 'max_time': 0.03, 'noise_magnitude': 0}
+    print("specaugm_kw {}".format(train_specaugm_kw))
+    print("train_splicing_kw {}".format(train_splicing_kw))
     train_augmentations = torch.nn.Sequential(
         train_specaugm_kw and features.SpecAugment(optim_level=args.amp, **train_specaugm_kw) or torch.nn.Identity(),
         features.FrameSplicing(optim_level=args.amp, **train_splicing_kw),
@@ -351,10 +357,35 @@ def main():
                                     device_type=args.dali_device,
                                     tokenizer=tokenizer)
     else:
-        from common.data.torchaudio import BucketingSampler, DistributedBucketingSampler
-        from common.data.torchaudio import AudioDataLoader
+        from common.data.torchaudio.data_loader import BucketingSampler, DistributedBucketingSampler
+        from common.data.torchaudio.data_loader import AudioDataLoader, SpectrogramDataset
+        from common.data.dataset import AudioDataset
 
-        if not args.multi_gpu:
+        #OUTPUT: tokenizer: {'labels': [' ', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', "'"], 'sentpiece_model': '/data/rnnt/datasets/sentencepieces/librispeech1023.model'}
+        print("tokenizer: {}".format(tokenizer_kw))
+        #OUTPUT: tokenizer: <common.data.text.Tokenizer object at 0x7f3943f990d0>
+        print("tokenizer: {}".format(tokenizer))
+        #OUTPUT tokenizer: {'normalize_transcripts': True, 'sample_rate': 16000, 'trim_silence': True}
+        print("tokenizer: {}".format(val_dataset_kw))
+        #OUTPUT tokenizer: {'sample_rate': 16000, 'window_size': 0.02, 'window_stride': 0.01, 'window': 'hann', 'normalize': 'per_feature', 'n_fft': 512, 'preemph': 0.97, 'n_filt': 80, 'lowfreq': 0, 'highfreq': None, 'log': True, 'dither': 1e-05}
+        print("tokenizer: {}".format(val_features_kw))
+        #OUTPUT tokenizer: {'max_duration': 16.7, 'normalize_transcripts': True, 'sample_rate': 16000, 'speed_perturbation': {'max_rate': 1.15, 'min_rate': 0.85, 'p': 1.0}, 'trim_silence': True}
+        print("tokenizer: {}".format(train_dataset_kw))
+        #OUTPUT tokenizer: {'sample_rate': 16000, 'window_size': 0.02, 'window_stride': 0.01, 'window': 'hann', 'normalize': 'per_feature', 'n_fft': 512, 'preemph': 0.97, 'n_filt': 80, 'lowfreq': 0, 'highfreq': None, 'log': True, 'dither': 1e-05}
+        print("tokenizer: {}".format(train_features_kw))
+
+        #TODO, pass in config data for sample_rate, etc. potentially use wrapper class to drive dataset, sampler, and dataloader creation, returning just the dataloader
+        train_dataset = AudioDataset(
+            data_dir=args.dataset_dir,
+            tokenizer=tokenizer,
+            manifest_fpaths=args.train_manifests)
+
+        val_dataset = AudioDataset(
+            data_dir=args.dataset_dir,
+            tokenizer=tokenizer,
+            manifest_fpaths=args.val_manifests)
+
+        if not multi_gpu:
             sampler = BucketingSampler(train_dataset,
                                        batch_size=batch_size)
         else:
@@ -362,13 +393,16 @@ def main():
                                                   batch_size=batch_size,
                                                   num_replicas=world_size,
                                                   rank=args.local_rank)
+
+        #TODO pass in all information needed for dataset, and sampler creation here
         train_loader = AudioDataLoader(train_dataset,
                                        num_workers=args.num_workers,
                                        batch_sampler=sampler)
 
-        val_loader = AudioDataLoader(test_dataset,
+        val_loader = AudioDataLoader(val_dataset,
                                      batch_size=batch_size,
                                      num_workers=args.num_workers)
+        print("EVERYTHING IS LOADED")
 
     train_feat_proc = train_augmentations
     val_feat_proc = val_augmentations
@@ -488,7 +522,6 @@ def main():
         epoch_start_time = time.time()
 
         for batch in train_loader:
-
             if accumulated_batches == 0:
                 adjust_lr(step, epoch)
                 optimizer.zero_grad()
@@ -497,10 +530,15 @@ def main():
                 all_feat_lens = []
 
             audio, audio_lens, txt, txt_lens = batch
+            #TODO is this the best place to move tensors over to cuda?  Does everything need to go? maybe batch.cuda?
+            #Our initial spectrogram and mel filter aug's aren't on gpu's it seems, we should look into this.
+            audio = audio.cuda()
+            audio_lens = audio_lens.cuda()
+            txt = txt.cuda()
+            txt_lens = txt_lens.cuda()
 
             feats, feat_lens = train_feat_proc([audio, audio_lens])
             all_feat_lens += feat_lens
-
             log_probs, log_prob_lens = model(feats, feat_lens, txt, txt_lens)
             loss = loss_fn(log_probs[:, :log_prob_lens.max().item()],
                            log_prob_lens, txt, txt_lens)

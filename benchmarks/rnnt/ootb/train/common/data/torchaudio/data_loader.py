@@ -19,11 +19,42 @@ import math
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 
-from data.SpecAugment import sparse_image_warp_zcaceres
+#TODO
+#from data.SpecAugment import sparse_image_warp_zcaceres
 
 windows = {'hamming': scipy.signal.hamming, 'hann': scipy.signal.hann, 'blackman': scipy.signal.blackman,
            'bartlett': scipy.signal.bartlett}
 
+def _parse_json(json_path: str, start_label=0, predicate=lambda json: True):
+    """
+    Parses json file to the format required by DALI
+    Args:
+        json_path: path to json file
+        start_label: the label, starting from which DALI will assign consecutive int numbers to every transcript
+        predicate: function, that accepts a sample descriptor (i.e. json dictionary) as an argument.
+                   If the predicate for a given sample returns True, it will be included in the dataset.
+
+    Returns:
+        output_files: dictionary, that maps file name to label assigned by DALI
+        transcripts: dictionary, that maps label assigned by DALI to the transcript
+    """
+    import json
+    global cnt
+    with open(json_path) as f:
+        librispeech_json = json.load(f)
+    output_files = {}
+    transcripts = {}
+    curr_label = start_label
+    for original_sample in librispeech_json:
+        if not predicate(original_sample):
+            continue
+        transcripts[curr_label] = original_sample['transcript']
+        output_files[original_sample['files'][-1]['fname']] = dict(
+            label=curr_label,
+            duration=original_sample['original_duration'],
+        )
+        curr_label += 1
+    return output_files, transcripts
 
 def mel_filter_bank(inpus):
     low_freq_mel = 0
@@ -266,8 +297,23 @@ class SpectrogramDataset(Dataset, SpectrogramParser):
         :param normalize: Apply standard mean and deviation normalization to audio tensor
         :param augment(default False):  Apply random tempo and gain perturbations
         """
+
+
+
+        output_files = {}
+        transcripts = {}
+        max_duration = 16.7
+        for jname in manifest_filepath:
+            of, tr = _parse_json(jname if jname[0] == '/' else os.path.join(audio_conf['dataset_path'], jname), len(output_files),
+                                 predicate=lambda json: json['original_duration'] <= max_duration)
+            output_files.update(of)
+            transcripts.update(tr)
+        print(output_files)
+        #print(transcripts)
+        print("manifest_filepath {}".format(manifest_filepath))
         with open(manifest_filepath) as f:
             ids = f.readlines()
+
         ids = [x.strip().split(',') for x in ids]
         self.ids = ids
         self.size = len(ids)
@@ -294,42 +340,23 @@ class SpectrogramDataset(Dataset, SpectrogramParser):
 
 
 def _collate_fn(batch):
-    def func(p):
-        return p[0].size(1)
+    bs = len(batch)
+    max_len = lambda l, idx: max(el[idx].size(0) for el in l)
+    max_len2 = lambda l, idx: max(el[0][idx].size(0) for el in l)
+    #TODO, don't use 80...maybe get shape of 2nd dimension of batch
+    audio = torch.zeros(bs, 80, max_len2(batch, 0))
 
-    batch = sorted(batch, key=lambda sample: sample[0].size(1), reverse=True)
-    longest_sample = max(batch, key=func)[0]
-    freq_size = longest_sample.size(0)
-    minibatch_size = len(batch)
-    max_seqlength = longest_sample.size(1)
-    inputs = torch.zeros(minibatch_size, 1, freq_size, max_seqlength)
-    input_percentages = torch.FloatTensor(minibatch_size)
-    target_sizes = torch.IntTensor(minibatch_size)
+    audio_lens = torch.zeros(bs, dtype=torch.int32)
+    transcript = torch.zeros(bs, max_len(batch, 2))
+    transcript_lens = torch.zeros(bs, dtype=torch.int32)
 
-    targets = []
-    targets_list = []
-    targets_one_hot = []
+    for i, sample in enumerate(batch):
+        audio[i].narrow(1, 0, sample[0].size(1)).copy_(sample[0])
+        audio_lens[i] = sample[1]
+        transcript[i].narrow(0, 0, sample[2].size(0)).copy_(sample[2])
+        transcript_lens[i] = sample[3]
 
-    for x in range(minibatch_size):
-        sample = batch[x]
-        tensor = sample[0]
-        target = sample[1]
-        targets_list.append(sample[1])
-        target_one_hot = torch.nn.functional.one_hot(torch.LongTensor(target), num_classes=29)
-        seq_length = tensor.size(1)
-        inputs[x][0].narrow(1, 0, seq_length).copy_(tensor)
-        input_percentages[x] = seq_length / float(max_seqlength)
-        target_sizes[x] = len(target)
-        targets.extend(target)
-        targets_one_hot.extend(target_one_hot.tolist())
-
-    targets = torch.LongTensor(targets)
-    targets_list = end_pad_label(targets_list)
-    targets_list = torch.LongTensor(targets_list)
-    targets_one_hot = torch.FloatTensor(targets_one_hot)
-    labels_map = sample[3]
-
-    return inputs, targets, input_percentages, target_sizes, targets_one_hot, targets_list, labels_map
+    return audio, audio_lens, transcript, transcript_lens
 
 
 class AudioDataLoader(DataLoader):

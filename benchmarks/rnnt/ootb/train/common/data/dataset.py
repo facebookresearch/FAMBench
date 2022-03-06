@@ -20,7 +20,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
 from torch.utils.data.distributed import DistributedSampler
-
+import torchaudio
 from common.audio import (audio_from_file, AudioSegment, SpeedPerturbation)
 from common.text import _clean_text, punctuation_map
 
@@ -126,11 +126,12 @@ class AudioDataset(Dataset):
 
         for p in self.perturbations:
             p.maybe_apply(segment, self.sample_rate)
-
         segment = torch.FloatTensor(segment.samples)
+        transform = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate, n_mels=80, n_fft=512)
+        segment = transform(segment)
 
         return (segment,
-                torch.tensor(segment.shape[0]).int(),
+                torch.tensor(segment.shape[1]).int(),
                 torch.tensor(s["transcript"]),
                 torch.tensor(len(s["transcript"])).int())
 
@@ -163,7 +164,6 @@ class AudioDataset(Dataset):
                 tr = normalize_string(tr, self.tokenizer.charset, self.punctuation_map)
 
             s["transcript"] = self.tokenizer.tokenize(tr)
-
             files = s.pop('files')
             if self.ignore_offline_speed_perturbation:
                 files = [f for f in files if f['speed'] == 1.0]
@@ -183,51 +183,3 @@ class AudioDataset(Dataset):
             transcript = transcript_file.read().replace('\n', '')
         return transcript
 
-def collate_fn(batch):
-    bs = len(batch)
-    max_len = lambda l, idx: max(el[idx].size(0) for el in l)
-    audio = torch.zeros(bs, max_len(batch, 0))
-    audio_lens = torch.zeros(bs, dtype=torch.int32)
-    transcript = torch.zeros(bs, max_len(batch, 2))
-    transcript_lens = torch.zeros(bs, dtype=torch.int32)
-
-    for i, sample in enumerate(batch):
-        audio[i].narrow(0, 0, sample[0].size(0)).copy_(sample[0])
-        audio_lens[i] = sample[1]
-        transcript[i].narrow(0, 0, sample[2].size(0)).copy_(sample[2])
-        transcript_lens[i] = sample[3]
-    return audio, audio_lens, transcript, transcript_lens
-
-
-def get_data_loader(dataset, batch_size, world_size, rank, shuffle=True,
-                    drop_last=True, num_workers=4, num_buckets=None):
-    if world_size != 1:
-        loader_shuffle = False
-        if num_buckets:
-            assert shuffle, 'only random buckets are supported'
-            sampler = BucketingSampler(
-                dataset,
-                batch_size,
-                num_buckets,
-                world_size,
-                rank,
-            )
-            print('Using BucketingSampler')
-        else:
-            sampler = DistributedSampler(dataset, shuffle=shuffle)
-            print('Using DistributedSampler')
-    else:
-        loader_shuffle = shuffle
-        sampler = None
-        print('Using no sampler')
-
-    return DataLoader(
-        batch_size=batch_size,
-        drop_last=drop_last,
-        sampler=sampler,
-        shuffle=loader_shuffle,
-        dataset=dataset,
-        collate_fn=collate_fn,
-        num_workers=num_workers,
-        pin_memory=True
-    )
