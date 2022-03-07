@@ -19,42 +19,11 @@ import math
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
 
-#TODO
+#TODO This load fails, but we don't need it anyways, only a small part of this file is used anymore(AudioDataLoader).  We should move it.
 #from data.SpecAugment import sparse_image_warp_zcaceres
 
 windows = {'hamming': scipy.signal.hamming, 'hann': scipy.signal.hann, 'blackman': scipy.signal.blackman,
            'bartlett': scipy.signal.bartlett}
-
-def _parse_json(json_path: str, start_label=0, predicate=lambda json: True):
-    """
-    Parses json file to the format required by DALI
-    Args:
-        json_path: path to json file
-        start_label: the label, starting from which DALI will assign consecutive int numbers to every transcript
-        predicate: function, that accepts a sample descriptor (i.e. json dictionary) as an argument.
-                   If the predicate for a given sample returns True, it will be included in the dataset.
-
-    Returns:
-        output_files: dictionary, that maps file name to label assigned by DALI
-        transcripts: dictionary, that maps label assigned by DALI to the transcript
-    """
-    import json
-    global cnt
-    with open(json_path) as f:
-        librispeech_json = json.load(f)
-    output_files = {}
-    transcripts = {}
-    curr_label = start_label
-    for original_sample in librispeech_json:
-        if not predicate(original_sample):
-            continue
-        transcripts[curr_label] = original_sample['transcript']
-        output_files[original_sample['files'][-1]['fname']] = dict(
-            label=curr_label,
-            duration=original_sample['original_duration'],
-        )
-        curr_label += 1
-    return output_files, transcripts
 
 def mel_filter_bank(inpus):
     low_freq_mel = 0
@@ -298,22 +267,8 @@ class SpectrogramDataset(Dataset, SpectrogramParser):
         :param augment(default False):  Apply random tempo and gain perturbations
         """
 
-
-
-        output_files = {}
-        transcripts = {}
-        max_duration = 16.7
-        for jname in manifest_filepath:
-            of, tr = _parse_json(jname if jname[0] == '/' else os.path.join(audio_conf['dataset_path'], jname), len(output_files),
-                                 predicate=lambda json: json['original_duration'] <= max_duration)
-            output_files.update(of)
-            transcripts.update(tr)
-        print(output_files)
-        #print(transcripts)
-        print("manifest_filepath {}".format(manifest_filepath))
         with open(manifest_filepath) as f:
             ids = f.readlines()
-
         ids = [x.strip().split(',') for x in ids]
         self.ids = ids
         self.size = len(ids)

@@ -402,7 +402,6 @@ def main():
         val_loader = AudioDataLoader(val_dataset,
                                      batch_size=batch_size,
                                      num_workers=args.num_workers)
-        print("EVERYTHING IS LOADED")
 
     train_feat_proc = train_augmentations
     val_feat_proc = val_augmentations
