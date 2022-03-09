@@ -168,7 +168,7 @@ def time_wrap(use_gpu):
 
 
 def dlrm_wrap(X, lS_o, lS_i, use_gpu, device, ndevices=1):
-    with record_function("DLRM forward"):        
+    with record_function("DLRM forward"):
         if dlrm.quantize_mlp_input_with_half_call:
             X = X.half()
         if use_gpu:
@@ -1845,10 +1845,10 @@ def run():
             32,
         ], "only support 8/16/32-bit but got {}".format(args.quantize_mlp_with_bit)
 
-        if not args.use_torch2trt_for_mlp: 
-            if args.quantize_mlp_with_bit == 16 and use_gpu:            
+        if not args.use_torch2trt_for_mlp:
+            if args.quantize_mlp_with_bit == 16 and use_gpu:
                 dlrm.top_l = dlrm.top_l.half()
-                dlrm.bot_l = dlrm.bot_l.half()         
+                dlrm.bot_l = dlrm.bot_l.half()
             elif args.quantize_mlp_with_bit in [8, 16]:
                 assert not use_gpu, (
                     "Cannot run PyTorch's built-in dynamic quantization for mlp "
@@ -1906,15 +1906,17 @@ def run():
 
     if args.use_torch2trt_for_mlp:
         if torch2trt and use_gpu and args.inference_only:
-            bot_l_sample_input = torch.ones([1, ln_bot[0]], dtype=torch.float32).cuda()
-            top_l_sample_input = torch.ones([1, ln_top[0]], dtype=torch.float32).cuda()
+            bot_l_sample_input = torch.ones([args.mini_batch_size, ln_bot[0]], dtype=torch.float32).cuda()
+            top_l_sample_input = torch.ones([args.mini_batch_size, ln_top[0]], dtype=torch.float32).cuda()
             additional_args = {}
+            additional_args['max_batch_size']=args.mini_batch_size
+            additional_args['max_workspace_size']=1 << 20
             if args.quantize_mlp_with_bit == 16:
                 additional_args['fp16_mode']=True
             elif args.quantize_mlp_with_bit == 8:
                 additional_args['int8_mode']=True
             dlrm.bot_l = torch2trt(dlrm.bot_l, (bot_l_sample_input,), **additional_args)
-            dlrm.top_l = torch2trt(dlrm.top_l, (top_l_sample_input,), **additional_args)                  
+            dlrm.top_l = torch2trt(dlrm.top_l, (top_l_sample_input,), **additional_args)
         elif torch2trt is None:
             sys.exit("\ntorch2trt module failed to import.\n\n" + torch2trt_import_error_msg)
         else:
@@ -2113,7 +2115,7 @@ def run():
             if args.fb5logger is not None:
                 bmlogger = get_bmlogger(args.fb5logger)
                 bmlogger.header("DLRM", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
-            
+
             k = 0
             while k < args.nepochs:
                 if args.mlperf_logging:
@@ -2415,7 +2417,7 @@ def run():
                             break
                 if k == 0:
                     bmlogger.run_stop(nbatches - args.warmup_steps, args.mini_batch_size)
-                    
+
                 if args.mlperf_logging:
                     mlperf_logger.barrier()
                     mlperf_logger.log_end(
