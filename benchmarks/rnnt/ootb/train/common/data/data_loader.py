@@ -77,6 +77,7 @@ class AudioDataLoader(DataLoader):
     def __init__(self,
                  #config
                  config_features,
+                 pipeline_type,
                  # DataSet
                  data_dir, manifest_fpaths,
                  tokenizer,
@@ -115,6 +116,8 @@ class AudioDataLoader(DataLoader):
                                             rank=rank)
         else:
             self.batch_sampler = batch_sampler
+
+        self.pipeline_type = pipeline_type
 
         super(AudioDataLoader, self).__init__(self.audio_dataset,
                                             batch_sampler=self.batch_sampler,
