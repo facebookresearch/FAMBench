@@ -110,6 +110,10 @@ class AudioDataset(Dataset):
 
         self.max_duration = max_duration
 
+        self.transformMel = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate, n_mels=self.n_filt, n_fft=self.n_fft)
+        self.transformToDB = torchaudio.transforms.AmplitudeToDB(top_db=20)
+
+
         self.samples = []
         self.duration = 0.0
         self.duration_filtered = 0.0
@@ -125,13 +129,14 @@ class AudioDataset(Dataset):
 
         segment = AudioSegment(
             s['audio_filepath'][rn_indx], target_sr=self.sample_rate,
-            offset=offset, duration=duration, trim=self.trim_silence)
+            offset=offset, duration=duration, trim=self.trim_silence, trim_db=-60)
 
         for p in self.perturbations:
             p.maybe_apply(segment, self.sample_rate)
         segment = torch.FloatTensor(segment.samples)
-        transform = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate, n_mels=self.n_filt, n_fft=self.n_fft)
-        segment = transform(segment)
+        segment = self.transformMel(segment)
+        segment = self.transformToDB(segment)
+
 
         return (segment,
                 torch.tensor(segment.shape[1]).int(),

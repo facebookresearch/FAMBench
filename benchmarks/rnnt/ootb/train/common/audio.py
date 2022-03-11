@@ -42,7 +42,7 @@ class AudioSegment(object):
     """
 
     def __init__(self, filename, target_sr=None, int_values=False, offset=0,
-                 duration=0, trim=False, trim_db=60):
+                 duration=0, trim=False, trim_db=-60):
         """Create audio segment from samples.
 
         Samples are converted to float32 internally, with int scaled to [-1, 1].
