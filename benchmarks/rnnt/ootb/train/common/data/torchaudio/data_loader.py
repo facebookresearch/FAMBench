@@ -18,6 +18,7 @@ import torchaudio
 import math
 from torch.utils.data import DataLoader
 from torch.utils.data import Dataset
+from common.data.dataset import AudioDataset
 
 #TODO This load fails, but we don't need it anyways, only a small part of this file is used anymore(AudioDataLoader).  We should move it.
 #from data.SpecAugment import sparse_image_warp_zcaceres
@@ -315,11 +316,55 @@ def _collate_fn(batch):
 
 
 class AudioDataLoader(DataLoader):
-    def __init__(self, *args, **kwargs):
+    def __init__(self,
+                 #config
+                 config_features,
+                 # DataSet
+                 data_dir, manifest_fpaths,
+                 tokenizer,
+                 sample_rate=16000, min_duration=0.1, max_duration=float("inf"),
+                 max_utts=0, normalize_transcripts=True,
+                 trim_silence=False,
+                 speed_perturbation=None,
+                 ignore_offline_speed_perturbation=False,
+                 # Sampler
+                 batch_size=1, num_replicas=None, rank=None,
+                 # Loader
+                 shuffle=False, sampler=None,
+                 batch_sampler=None, num_workers=0, collate_fn=None,
+                 pin_memory=False, drop_last=False, timeout=0,
+                 worker_init_fn=None, *, prefetch_factor=2,
+                 persistent_workers=False):
         """
         Creates a data loader for AudioDatasets.
         """
-        super(AudioDataLoader, self).__init__(*args, **kwargs)
+        self.audio_dataset = AudioDataset(
+                 data_dir=data_dir,
+                 tokenizer=tokenizer,
+                 manifest_fpaths=manifest_fpaths,
+                 n_filt=config_features["n_filt"],
+                 n_fft=config_features["n_fft"]
+                 )
+
+        if batch_sampler is None:
+            if num_replicas <= 1:
+                self.batch_sampler = BucketingSampler(self.audio_dataset,
+                                           batch_size=batch_size)
+            else:
+                self.batch_sampler = DistributedBucketingSampler(self.audio_dataset,
+                                            batch_size=batch_size,
+                                            num_replicas=num_replicas,
+                                            rank=rank)
+        else:
+            self.batch_sampler = batch_sampler
+
+        super(AudioDataLoader, self).__init__(self.audio_dataset,
+                                            batch_sampler=self.batch_sampler,
+                                            num_workers=num_workers, collate_fn=None,
+                                            pin_memory=pin_memory,
+                                            timeout=timeout, worker_init_fn=worker_init_fn,
+                                            prefetch_factor=prefetch_factor,
+                                            persistent_workers=persistent_workers)
         self.collate_fn = _collate_fn
 
 

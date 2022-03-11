@@ -68,7 +68,8 @@ class AudioDataset(Dataset):
                  max_utts=0, normalize_transcripts=True,
                  trim_silence=False,
                  speed_perturbation=None,
-                 ignore_offline_speed_perturbation=False):
+                 ignore_offline_speed_perturbation=False,
+                 n_filt=80, n_fft=512):
         """Loads audio, transcript and durations listed in a .json file.
 
         Args:
@@ -99,6 +100,8 @@ class AudioDataset(Dataset):
         self.max_duration = max_duration
         self.trim_silence = trim_silence
         self.sample_rate = sample_rate
+        self.n_filt = n_filt
+        self.n_fft = n_fft
 
         perturbations = []
         if speed_perturbation is not None:
@@ -127,7 +130,7 @@ class AudioDataset(Dataset):
         for p in self.perturbations:
             p.maybe_apply(segment, self.sample_rate)
         segment = torch.FloatTensor(segment.samples)
-        transform = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate, n_mels=80, n_fft=512)
+        transform = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate, n_mels=self.n_filt, n_fft=self.n_fft)
         segment = transform(segment)
 
         return (segment,

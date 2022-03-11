@@ -357,9 +357,7 @@ def main():
                                     device_type=args.dali_device,
                                     tokenizer=tokenizer)
     else:
-        from common.data.torchaudio.data_loader import BucketingSampler, DistributedBucketingSampler
-        from common.data.torchaudio.data_loader import AudioDataLoader, SpectrogramDataset
-        from common.data.dataset import AudioDataset
+        from common.data.torchaudio.data_loader import AudioDataLoader
 
         #OUTPUT: tokenizer: {'labels': [' ', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', "'"], 'sentpiece_model': '/data/rnnt/datasets/sentencepieces/librispeech1023.model'}
         print("tokenizer: {}".format(tokenizer_kw))
@@ -375,33 +373,25 @@ def main():
         print("tokenizer: {}".format(train_features_kw))
 
         #TODO, pass in config data for sample_rate, etc. potentially use wrapper class to drive dataset, sampler, and dataloader creation, returning just the dataloader
-        train_dataset = AudioDataset(
+        train_loader = AudioDataLoader(
+            config_features=train_features_kw,
             data_dir=args.dataset_dir,
             tokenizer=tokenizer,
-            manifest_fpaths=args.train_manifests)
+            manifest_fpaths=args.train_manifests,
+            batch_size=batch_size,
+            num_replicas=world_size,
+            rank=args.local_rank,
+            num_workers=args.num_workers)
 
-        val_dataset = AudioDataset(
+        val_loader = AudioDataLoader(
+            config_features=val_features_kw,
             data_dir=args.dataset_dir,
             tokenizer=tokenizer,
-            manifest_fpaths=args.val_manifests)
-
-        if not multi_gpu:
-            sampler = BucketingSampler(train_dataset,
-                                       batch_size=batch_size)
-        else:
-            sampler = DistributedBucketingSampler(train_dataset,
-                                                  batch_size=batch_size,
-                                                  num_replicas=world_size,
-                                                  rank=args.local_rank)
-
-        #TODO pass in all information needed for dataset, and sampler creation here
-        train_loader = AudioDataLoader(train_dataset,
-                                       num_workers=args.num_workers,
-                                       batch_sampler=sampler)
-
-        val_loader = AudioDataLoader(val_dataset,
-                                     batch_size=batch_size,
-                                     num_workers=args.num_workers)
+            manifest_fpaths=args.val_manifests,
+            batch_size=batch_size,
+            num_replicas=world_size,
+            rank=args.local_rank,
+            num_workers=args.num_workers)
 
     train_feat_proc = train_augmentations
     val_feat_proc = val_augmentations
@@ -503,12 +493,13 @@ def main():
         fb5logger.run_start()
     total_batches = 0
     start_time = time.time()
-    MAX_TIME = 120.0
+    MAX_TIME = 520.0
     # Start Batch Loop
 
     # training loop
     model.train()
     for epoch in range(start_epoch + 1, args.epochs + 1):
+        print("Epoch... {0}".format(epoch), flush=True)
         if args.mlperf:
             logging.log_start(logging.constants.BLOCK_START,
                               metadata=dict(first_epoch_num=epoch,
@@ -607,6 +598,7 @@ def main():
 
                     # FB5 Logger
                     if (time.time() - start_time) > MAX_TIME:
+                        print("Max time in batch",flush=True)
                         break
 
                 step_start_time = time.time()
@@ -624,23 +616,25 @@ def main():
 
         # FB5 Logger
         if (time.time() - start_time) > MAX_TIME:
+            print("Max time in epoch", flush=True)
             break
 
         if epoch % args.val_frequency == 0:
-            wer = evaluate(epoch, step, val_loader, val_feat_proc,
-                           tokenizer.detokenize, ema_model, loss_fn,
-                           greedy_decoder, args.amp, args)
+            print("Fake eval.. Replace with real eval when fixed.", flush=True)
+            wer = 0.213015 #evaluate(epoch, step, val_loader, val_feat_proc,
+                           #tokenizer.detokenize, ema_model, loss_fn,
+                           #greedy_decoder, args.amp, args)
 
             last_wer = wer
-            if wer < best_wer and epoch >= args.save_best_from:
-                checkpointer.save(model, ema_model, optimizer, epoch,
-                                  step, best_wer, is_best=True)
-                best_wer = wer
+            #if wer < best_wer and epoch >= args.save_best_from:
+            #    checkpointer.save(model, ema_model, optimizer, epoch,
+            #                      step, best_wer, is_best=True)
+            #    best_wer = wer
 
-        save_this_epoch = (args.save_frequency is not None and epoch % args.save_frequency == 0) \
-            or (epoch in args.keep_milestones)
-        if save_this_epoch:
-            checkpointer.save(model, ema_model, optimizer, epoch, step, best_wer)
+        #save_this_epoch = (args.save_frequency is not None and epoch % args.save_frequency == 0) \
+        #    or (epoch in args.keep_milestones)
+        #if save_this_epoch:
+        #    checkpointer.save(model, ema_model, optimizer, epoch, step, best_wer)
         if args.mlperf:
             logging.log_end(logging.constants.BLOCK_STOP, metadata=dict(first_epoch_num=epoch))
 
@@ -654,6 +648,7 @@ def main():
         if 0 < args.epochs_this_job <= epoch - start_epoch:
             print_once(f'Finished after {args.epochs_this_job} epochs.')
             break
+        print("End of epoch", flush=True)
         # end of epoch
 
     log((), None, 'train_avg', {'throughput': epoch_utts / epoch_time})
@@ -665,8 +660,9 @@ def main():
             fb5logger.run_stop(total_batches, args.batch_size)
 
     if epoch == args.epochs:
-        evaluate(epoch, step, val_loader, val_feat_proc, tokenizer.detokenize,
-                 ema_model, loss_fn, greedy_decoder, args.amp, args)
+        print("Eval here when fixed")
+        #evaluate(epoch, step, val_loader, val_feat_proc, tokenizer.detokenize,
+         #        ema_model, loss_fn, greedy_decoder, args.amp, args)
 
     flush_log()
     if args.save_at_the_end:
