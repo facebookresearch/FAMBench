@@ -375,25 +375,29 @@ def main():
         #TODO, pass in config data for sample_rate, etc. potentially use wrapper class to drive dataset, sampler, and dataloader creation, returning just the dataloader
         train_loader = AudioDataLoader(
             config_features=train_features_kw,
-            pipeline_type="train",
+            pipeline_type="train", 
+            gpu_id=args.local_rank,
             data_dir=args.dataset_dir,
             tokenizer=tokenizer,
             manifest_fpaths=args.train_manifests,
             batch_size=batch_size,
             num_replicas=world_size,
             rank=args.local_rank,
-            num_workers=args.num_workers)
+            num_workers=args.num_workers,
+            device_type=args.dali_device)
 
         val_loader = AudioDataLoader(
             config_features=val_features_kw,
             pipeline_type="val",
+            gpu_id=args.local_rank,
             data_dir=args.dataset_dir,
             tokenizer=tokenizer,
             manifest_fpaths=args.val_manifests,
             batch_size=batch_size,
             num_replicas=world_size,
             rank=args.local_rank,
-            num_workers=args.num_workers)
+            num_workers=args.num_workers,
+            device_type=args.dali_device)
 
     train_feat_proc = train_augmentations
     val_feat_proc = val_augmentations

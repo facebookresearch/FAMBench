@@ -78,6 +78,7 @@ class AudioDataLoader(DataLoader):
                  #config
                  config_features,
                  pipeline_type,
+                 gpu_id,
                  # DataSet
                  data_dir, manifest_fpaths,
                  tokenizer,
@@ -93,7 +94,8 @@ class AudioDataLoader(DataLoader):
                  batch_sampler=None, num_workers=0, collate_fn=None,
                  pin_memory=False, drop_last=False, timeout=0,
                  worker_init_fn=None, *, prefetch_factor=2,
-                 persistent_workers=False):
+                 persistent_workers=False,
+                 device_type="gpu"):
         """
         Creates a data loader for AudioDatasets.
         """
@@ -118,6 +120,8 @@ class AudioDataLoader(DataLoader):
             self.batch_sampler = batch_sampler
 
         self.pipeline_type = pipeline_type
+        self.gpu_id = gpu_id
+        self.device_type = device_type
 
         super(AudioDataLoader, self).__init__(self.audio_dataset,
                                             batch_sampler=self.batch_sampler,
