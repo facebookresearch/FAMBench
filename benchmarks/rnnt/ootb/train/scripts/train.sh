@@ -39,16 +39,14 @@ export OMP_NUM_THREADS=1
 : ${SAVE_AT_THE_END:=false}
 : ${EPOCHS_THIS_JOB:=0}
 : ${RESUME:=true}
-: ${DALI_DEVICE:="cpu"}
+: ${NODALI:=true}
+: ${DEVICE:="gpu"}
 : ${VAL_FREQUENCY:=1}
 : ${PREDICTION_FREQUENCY:=1000}
 : ${BETA1:=0.9}
 : ${BETA2:=0.999}
 : ${LOG_FREQUENCY:=1}
-: ${TRAIN_MANIFESTS:="$DATA_DIR/librispeech-train-clean-100-wav.json \
-                      $DATA_DIR/librispeech-train-clean-360-wav.json"}
-                      # Remove train-other-500, which is 500 hours to reduce set-up time.
-                      # $DATA_DIR/librispeech-train-other-500-wav.json"}
+: ${TRAIN_MANIFESTS:="$DATA_DIR/librispeech-dev-clean-wav.json"}
 : ${VAL_MANIFESTS:="$DATA_DIR/librispeech-dev-clean-wav.json"}
 : ${LOG_NORM:=false}
 : ${USE_OLD_VAL:=true}
@@ -81,7 +79,7 @@ ARGS+=" --weight_decay=1e-3"
 ARGS+=" --log_frequency=$LOG_FREQUENCY"
 ARGS+=" --val_frequency=$VAL_FREQUENCY"
 ARGS+=" --grad_accumulation_steps=$GRAD_ACCUMULATION_STEPS "
-ARGS+=" --dali_device=$DALI_DEVICE"
+ARGS+=" --device=$DEVICE"
 ARGS+=" --beta1=$BETA1"
 ARGS+=" --beta2=$BETA2"
 
@@ -90,6 +88,7 @@ ARGS+=" --beta2=$BETA2"
 [ "$AMP" = true ] &&                 ARGS+=" --amp"
 [ "$RESUME" = true ] &&              ARGS+=" --resume"
 [ "$CUDNN_BENCHMARK" = true ] &&     ARGS+=" --cudnn_benchmark"
+[ "$NODALI" = true ] &&              ARGS+=" --nodali"
 [ "$LOG_NORM" = true ] &&            ARGS+=" --log_norm"
 [ "$SAVE_AT_THE_END" = true ] &&     ARGS+=" --save_at_the_end"
 [ -n "$CHECKPOINT" ] &&              ARGS+=" --ckpt=$CHECKPOINT"

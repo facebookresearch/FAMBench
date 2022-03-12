@@ -99,8 +99,10 @@ def parse_args():
                        help='Discount factor for exp averaging of model weights')
 
     io = parser.add_argument_group('feature and checkpointing setup')
-    io.add_argument('--dali_device', type=str, choices=['cpu', 'gpu', 'nodali'],
-                    default='nodali', help='Use DALI pipeline for fast data processing')
+    io.add_argument('--nodali', action='store_true', default=True,
+                    help='Don\'t use DALI pipeline for fast data processing')
+    io.add_argument('--device', type=str, choices=['cpu', 'gpu'],
+                    default='gpu', help='Use device for execution.')
     io.add_argument('--num-workers', default=6, type=int,
                     help='Number of workers used in data-loading')
     io.add_argument('--resume', action='store_true',
@@ -319,7 +321,7 @@ def main():
     if args.mlperf:
         logging.log_event(logging.constants.DATA_TRAIN_NUM_BUCKETS, value=args.num_buckets)
 
-    if args.dali_device != "nodali":
+    if not args.nodali:
         from common.data.dali import sampler as dali_sampler
         from common.data.dali.data_loader import DaliDataLoader
 
@@ -343,7 +345,7 @@ def main():
                                       sampler=sampler,
                                       grad_accumulation_steps=args.grad_accumulation_steps,
                                       pipeline_type="train",
-                                      device_type=args.dali_device,
+                                      device_type=args.device,
                                       tokenizer=tokenizer)
 
         val_loader = DaliDataLoader(gpu_id=args.local_rank,
@@ -354,7 +356,7 @@ def main():
                                     batch_size=args.val_batch_size,
                                     sampler=dali_sampler.SimpleSampler(),
                                     pipeline_type="val",
-                                    device_type=args.dali_device,
+                                    device_type=args.device,
                                     tokenizer=tokenizer)
     else:
         from common.data.data_loader import AudioDataLoader
@@ -375,7 +377,7 @@ def main():
         #TODO, pass in config data for sample_rate, etc. potentially use wrapper class to drive dataset, sampler, and dataloader creation, returning just the dataloader
         train_loader = AudioDataLoader(
             config_features=train_features_kw,
-            pipeline_type="train", 
+            pipeline_type="train",
             gpu_id=args.local_rank,
             data_dir=args.dataset_dir,
             tokenizer=tokenizer,
@@ -384,7 +386,7 @@ def main():
             num_replicas=world_size,
             rank=args.local_rank,
             num_workers=args.num_workers,
-            device_type=args.dali_device)
+            device_type=args.device)
 
         val_loader = AudioDataLoader(
             config_features=val_features_kw,
@@ -397,7 +399,7 @@ def main():
             num_replicas=world_size,
             rank=args.local_rank,
             num_workers=args.num_workers,
-            device_type=args.dali_device)
+            device_type=args.device)
 
     train_feat_proc = train_augmentations
     val_feat_proc = val_augmentations
