@@ -23,7 +23,7 @@ export OMP_NUM_THREADS=1
 : ${FB5CONFIG:=${5}}
 : ${CHECKPOINT:-}
 : ${CUDNN_BENCHMARK:=true}
-: ${NUM_GPUS:=1}
+: ${NUM_GPUS:=8}
 : ${AMP:=false}
 : ${GLOBAL_BATCH_SIZE:=1024}
 : ${VAL_BATCH_SIZE:=2}
@@ -46,7 +46,10 @@ export OMP_NUM_THREADS=1
 : ${BETA1:=0.9}
 : ${BETA2:=0.999}
 : ${LOG_FREQUENCY:=1}
-: ${TRAIN_MANIFESTS:="$DATA_DIR/librispeech-dev-clean-wav.json"}
+: ${TRAIN_MANIFESTS:="$DATA_DIR/librispeech-train-clean-100-wav.json \
+                      $DATA_DIR/librispeech-train-clean-360-wav.json"}
+                      # Remove train-other-500, which is 500 hours to reduce set-up time.
+                      # $DATA_DIR/librispeech-train-other-500-wav.json"}
 : ${VAL_MANIFESTS:="$DATA_DIR/librispeech-dev-clean-wav.json"}
 : ${LOG_NORM:=false}
 : ${USE_OLD_VAL:=true}
