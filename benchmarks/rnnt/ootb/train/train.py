@@ -37,7 +37,7 @@ from rnnt import config
 from rnnt.decoder import RNNTGreedyDecoder
 from rnnt.loss import RNNTLoss
 from rnnt.model import RNNT
-
+import torch.multiprocessing as mp
 from mlperf import logging
 
 # FB5 Logger
@@ -215,6 +215,7 @@ def main():
     assert args.prediction_frequency is None or args.prediction_frequency % args.log_frequency == 0
 
     torch.backends.cudnn.benchmark = args.cudnn_benchmark
+    mp.set_start_method("spawn")
 
     # set up distributed training
     multi_gpu = int(os.environ.get('WORLD_SIZE', 1)) > 1
@@ -530,10 +531,10 @@ def main():
             audio, audio_lens, txt, txt_lens = batch
             #TODO is this the best place to move tensors over to cuda?  Does everything need to go? maybe batch.cuda?
             #Our initial spectrogram and mel filter aug's aren't on gpu's it seems, we should look into this.
-            audio = audio.cuda()
-            audio_lens = audio_lens.cuda()
-            txt = txt.cuda()
-            txt_lens = txt_lens.cuda()
+            # audio = audio.cuda()
+            # audio_lens = audio_lens.cuda()
+            # txt = txt.cuda()
+            # txt_lens = txt_lens.cuda()
 
             feats, feat_lens = train_feat_proc([audio, audio_lens])
             all_feat_lens += feat_lens
@@ -628,21 +629,20 @@ def main():
             break
 
         if epoch % args.val_frequency == 0:
-            print("Fake eval.. Replace with real eval when fixed.", flush=True)
-            wer = 0.213015 #evaluate(epoch, step, val_loader, val_feat_proc,
-                           #tokenizer.detokenize, ema_model, loss_fn,
-                           #greedy_decoder, args.amp, args)
+            evaluate(epoch, step, val_loader, val_feat_proc,
+                tokenizer.detokenize, ema_model, loss_fn,
+                greedy_decoder, args.amp, args)
 
             last_wer = wer
-            #if wer < best_wer and epoch >= args.save_best_from:
-            #    checkpointer.save(model, ema_model, optimizer, epoch,
-            #                      step, best_wer, is_best=True)
-            #    best_wer = wer
+            if wer < best_wer and epoch >= args.save_best_from:
+               checkpointer.save(model, ema_model, optimizer, epoch,
+                                 step, best_wer, is_best=True)
+               best_wer = wer
 
-        #save_this_epoch = (args.save_frequency is not None and epoch % args.save_frequency == 0) \
-        #    or (epoch in args.keep_milestones)
-        #if save_this_epoch:
-        #    checkpointer.save(model, ema_model, optimizer, epoch, step, best_wer)
+        save_this_epoch = (args.save_frequency is not None and epoch % args.save_frequency == 0) \
+            or (epoch in args.keep_milestones)
+        if save_this_epoch:
+            checkpointer.save(model, ema_model, optimizer, epoch, step, best_wer)
         if args.mlperf:
             logging.log_end(logging.constants.BLOCK_STOP, metadata=dict(first_epoch_num=epoch))
 
