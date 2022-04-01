@@ -62,14 +62,15 @@ class SingleAudioDataset(FilelistDataset):
 
 
 class AudioDataset(Dataset):
-    def __init__(self, data_dir, manifest_fpaths,
+    def __init__(self, data_dir, manifest_fpaths, gpu_id,
                  tokenizer,
                  sample_rate=16000, min_duration=0.1, max_duration=float("inf"),
                  max_utts=0, normalize_transcripts=True,
                  trim_silence=False,
                  speed_perturbation=None,
                  ignore_offline_speed_perturbation=False,
-                 n_filt=80, n_fft=512):
+                 n_filt=80, n_fft=512,
+                device_type="gpu"):
         """Loads audio, transcript and durations listed in a .json file.
 
         Args:
@@ -88,7 +89,7 @@ class AudioDataset(Dataset):
             tuple of Tensors
         """
         self.data_dir = data_dir
-
+        self.gpu_id = gpu_id
         self.tokenizer = tokenizer
         self.punctuation_map = punctuation_map(self.tokenizer.charset)
 
@@ -102,6 +103,8 @@ class AudioDataset(Dataset):
         self.sample_rate = sample_rate
         self.n_filt = n_filt
         self.n_fft = n_fft
+        self.device_type = device_type
+        self.device = "cuda:"+str(self.gpu_id) if self.device_type == "gpu" else "cpu"
 
         perturbations = []
         if speed_perturbation is not None:
@@ -110,9 +113,8 @@ class AudioDataset(Dataset):
 
         self.max_duration = max_duration
 
-        self.transformMel = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate, n_mels=self.n_filt, n_fft=self.n_fft)
-        self.transformToDB = torchaudio.transforms.AmplitudeToDB(top_db=20)
-
+        self.transformMel = torchaudio.transforms.MelSpectrogram(sample_rate=self.sample_rate, n_mels=self.n_filt, n_fft=self.n_fft).to(self.device)
+        self.transformToDB = torchaudio.transforms.AmplitudeToDB(top_db=20).to(self.device)
 
         self.samples = []
         self.duration = 0.0
@@ -133,7 +135,8 @@ class AudioDataset(Dataset):
 
         for p in self.perturbations:
             p.maybe_apply(segment, self.sample_rate)
-        segment = torch.FloatTensor(segment.samples)
+
+        segment = torch.FloatTensor(segment.samples).to(self.device)
         segment = self.transformMel(segment)
         segment = self.transformToDB(segment)
 

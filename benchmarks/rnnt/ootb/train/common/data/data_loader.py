@@ -58,11 +58,15 @@ def _collate_fn(batch):
     max_len = lambda l, idx: max(el[idx].size(0) for el in l)
     max_len2 = lambda l, idx: max(el[0][idx].size(0) for el in l)
     #TODO, don't use 80...maybe get shape of 2nd dimension of batch
-    audio = torch.zeros(bs, 80, max_len2(batch, 0))
+    device = "cuda:"+str(batch[0][0].get_device()) if batch[0][0].get_device() >= 0 else "cpu"
 
+    audio = torch.zeros(bs, 80, max_len2(batch, 0)).to(device)
     audio_lens = torch.zeros(bs, dtype=torch.int32)
-    transcript = torch.zeros(bs, max_len(batch, 2))
+    transcript = torch.zeros(bs, max_len(batch, 2)).to(device)
     transcript_lens = torch.zeros(bs, dtype=torch.int32)
+
+
+
 
     for i, sample in enumerate(batch):
         audio[i].narrow(1, 0, sample[0].size(1)).copy_(sample[0])
@@ -104,7 +108,9 @@ class AudioDataLoader(DataLoader):
                  tokenizer=tokenizer,
                  manifest_fpaths=manifest_fpaths,
                  n_filt=config_features["n_filt"],
-                 n_fft=config_features["n_fft"]
+                 n_fft=config_features["n_fft"],
+                 device_type=device_type,
+                 gpu_id=gpu_id
                  )
 
         if batch_sampler is None:
@@ -145,7 +151,8 @@ class BucketingSampler(Sampler):
 
     def __iter__(self):
         for ids in self.bins:
-            np.random.shuffle(ids)
+            #numpy is going to pull work back to cpu
+            #np.random.shuffle(ids)
             yield ids
 
     def __len__(self):
