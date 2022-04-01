@@ -668,9 +668,8 @@ def main():
             fb5logger.run_stop(total_batches, args.batch_size)
 
     if epoch == args.epochs:
-        print("Eval here when fixed")
-        #evaluate(epoch, step, val_loader, val_feat_proc, tokenizer.detokenize,
-         #        ema_model, loss_fn, greedy_decoder, args.amp, args)
+        evaluate(epoch, step, val_loader, val_feat_proc, tokenizer.detokenize,
+                 ema_model, loss_fn, greedy_decoder, args.amp, args)
 
     flush_log()
     if args.save_at_the_end:
