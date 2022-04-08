@@ -27,6 +27,11 @@ def get_local_rank():
 def main():
     parser = argparse.ArgumentParser(description="comms.py driver")
     parser.add_argument(
+        "--master_ip",
+        type=str,
+        default="localhost",
+    )
+    parser.add_argument(
         "--size",
         type=str,
         default="small",
@@ -65,7 +70,6 @@ def main():
     (x, y) = (args.size, lookup.get(args.size, args.size))
     (size, name) = (x, y) if args.size.isdigit() else (y, x)
 
-    master_ip = "localhost"
     num_compute_per_collective = 100
     mm_dim = 1000
     num_iter = 100
@@ -73,7 +77,7 @@ def main():
     cmd = f"""
         --f 2
         --n {num_iter}
-        --master-ip {master_ip}
+        --master-ip {args.master_ip}
         --master-port 22565
         --collective {args.collective}
         --b {size}
