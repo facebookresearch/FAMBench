@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-work_dir=/export/b07/ws15dgalvez/mlperf-rnnt-librispeech
+work_dir=/home/jpvillam/FAMBench-dllehr/benchmarks/rnnt/ootb/inference/workspace
 local_data_dir=$work_dir/local_data
 librispeech_download_dir=$local_data_dir/LibriSpeech
 stage=3
@@ -14,7 +14,7 @@ mkdir -p $install_dir
 install_dir=$(readlink -f $install_dir)
 
 set +u
-source "$($CONDA_EXE info --base)/etc/profile.d/conda.sh"
+#source "$($CONDA_EXE info --base)/etc/profile.d/conda.sh"
 set -u
 
 # stage -1: install dependencies
@@ -39,7 +39,7 @@ fi
 export PATH="$install_dir/bin/:$PATH"
 
 set +u
-conda activate mlperf-rnnt
+#conda activate mlperf-rnnt
 set -u
 
 # stage 0: download model. Check checksum to skip?

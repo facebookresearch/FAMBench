@@ -55,7 +55,7 @@ class LstmDrop(torch.nn.Module):
             A `torch.nn.LSTM`.
         """
         super(LstmDrop, self).__init__()
-
+        dropout=0.0
         self.lstm = torch.nn.LSTM(
             input_size=input_size,
             hidden_size=hidden_size,
@@ -71,10 +71,10 @@ class LstmDrop(torch.nn.Module):
                     bias = getattr(self.lstm, name)
                     bias.data[hidden_size:2 * hidden_size].fill_(0)
 
-        if dropout:
+        if dropout > 0:
             self.inplace_dropout = torch.nn.Dropout(dropout, inplace=True)
         else:
-            self.inplace_droput = None
+            self.inplace_dropout = None
 
     def forward(self, x: torch.Tensor,
                 h: Optional[Tuple[torch.Tensor, torch.Tensor]] = None):

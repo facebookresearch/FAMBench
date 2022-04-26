@@ -30,6 +30,7 @@ class AudioPreprocessing(nn.Module):
         self.optim_level = kwargs.get(
             'optimization_level', Optimization.nothing)
         self.featurizer = FeatureFactory.from_config(kwargs)
+        self.featurizer = self.featurizer.cuda()
 
     def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         input_signal, length = x
