@@ -28,7 +28,7 @@ class RNNT(torch.nn.Module):
             rnnt["rnn_type"],
             rnnt["encoder_stack_time_factor"],
             rnnt["dropout"],
-        )
+        ).cuda()
 
         self.prediction = Prediction(
             num_classes,
@@ -38,7 +38,7 @@ class RNNT(torch.nn.Module):
             None if "norm" not in rnnt else rnnt["norm"],
             rnnt["rnn_type"],
             rnnt["dropout"],
-        )
+        ).cuda()
 
         self.joint = Joint(
             num_classes,
@@ -46,7 +46,7 @@ class RNNT(torch.nn.Module):
             rnnt["encoder_n_hidden"],
             rnnt["joint_n_hidden"],
             rnnt["dropout"],
-        )
+        ).cuda()
 
     def forward(self, x_padded: torch.Tensor, x_lens: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         return self.encoder(x_padded, x_lens)
@@ -66,7 +66,7 @@ class Encoder(torch.nn.Module):
             norm=norm,
             forget_gate_bias=forget_gate_bias,
             dropout=dropout,
-        )
+        ).cuda()
         self.stack_time = StackTime(factor=encoder_stack_time_factor)
         self.post_rnn = rnn(
             rnn=rnn_type,
@@ -77,10 +77,10 @@ class Encoder(torch.nn.Module):
             forget_gate_bias=forget_gate_bias,
             norm_first_rnn=True,
             dropout=dropout,
-        )
+        ).cuda()
 
     def forward(self, x_padded: torch.Tensor, x_lens: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
-        x_padded, _ = self.pre_rnn(x_padded, None)
+        x_padded, _ = self.pre_rnn(x_padded.cuda(), None)
         x_padded, x_lens = self.stack_time(x_padded, x_lens)
         # (T, B, H)
         x_padded, _ = self.post_rnn(x_padded, None)
@@ -102,7 +102,7 @@ class Prediction(torch.nn.Module):
             norm=norm,
             forget_gate_bias=forget_gate_bias,
             dropout=dropout,
-        )
+        ).cuda()
 
     def forward(self, y: Optional[torch.Tensor],
                 state: Optional[Tuple[torch.Tensor, torch.Tensor]] = None) -> Tuple[torch.Tensor, Tuple[torch.Tensor, torch.Tensor]]:
@@ -131,7 +131,7 @@ class Prediction(torch.nn.Module):
             B = 1
             y = torch.zeros((B, 1, self.n_hidden), dtype=torch.float32)
         else:
-            y = self.embed(y)
+            y = self.embed(y.cuda())
 
         # if state is None:
         #    batch = y.size(0)
@@ -142,7 +142,7 @@ class Prediction(torch.nn.Module):
         #    ]
 
         y = y.transpose(0, 1)  # .contiguous()   # (U + 1, B, H)
-        g, hid = self.dec_rnn(y, state)
+        g, hid = self.dec_rnn(y.cuda(), state)
         g = g.transpose(0, 1)  # .contiguous()   # (B, U + 1, H)
         # del y, state
         return g, hid
@@ -159,7 +159,7 @@ class Joint(torch.nn.Module):
         ]
         self.net = torch.nn.Sequential(
             *layers
-        )
+        ).cuda()
 
     def forward(self, f: torch.Tensor, g: torch.Tensor):
         """
