@@ -15,9 +15,9 @@
 import math
 import random
 
-import librosa
 import torch
 import torch.nn as nn
+import torchaudio
 
 from apex import amp
 
@@ -200,8 +200,8 @@ class FilterbankFeatures(BaseFeatures):
         window_tensor = window_fn(self.win_length,
                                   periodic=False) if window_fn else None
         filterbanks = torch.tensor(
-            librosa.filters.mel(sample_rate, self.n_fft, n_mels=n_filt,
-                                fmin=lowfreq, fmax=highfreq),
+            torchaudio.functional.melscale_fbanks(sample_rate=sample_rate, n_freqs=(self.n_fft//2)+1, n_mels=nfilt, f_min=lowfreq,
+            f_max=highfreq, mel_scale="slaney", norm="slaney").transpose(-1,-2),
             dtype=torch.float).unsqueeze(0)
         # torchscript
         self.register_buffer("fb", filterbanks)

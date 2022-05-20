@@ -13,7 +13,7 @@
 # limitations under the License.
 
 import numpy as np
-import librosa
+import torchaudio
 import soundfile as sf
 
 
@@ -33,10 +33,11 @@ class AudioSegment(object):
         """
         samples = self._convert_samples_to_float32(samples)
         if target_sr is not None and target_sr != sample_rate:
-            samples = librosa.core.resample(samples, sample_rate, target_sr)
+            samples = torchaudio.functional.resample(samples, sample_rate, target_sr)
             sample_rate = target_sr
         if trim:
-            samples, _ = librosa.effects.trim(samples, trim_db)
+            # Might only be trimming from the front
+            samples = torchaudio.functional.vad(samples, sample_rate, trim_db)
         self._samples = samples
         self._sample_rate = sample_rate
         if self._samples.ndim >= 2:

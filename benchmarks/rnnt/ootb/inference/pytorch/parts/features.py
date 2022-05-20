@@ -18,7 +18,7 @@ from typing import Tuple
 import torch
 import torch.nn as nn
 import math
-import librosa
+import torchaudio
 from .segment import AudioSegment
 
 
@@ -123,8 +123,8 @@ class FilterbankFeatures(nn.Module):
         window_tensor = window_fn(self.win_length,
                                   periodic=False) if window_fn else None
         filterbanks = torch.tensor(
-            librosa.filters.mel(sample_rate, self.n_fft, n_mels=nfilt, fmin=lowfreq,
-                                fmax=highfreq), dtype=torch.float).unsqueeze(0)
+            torchaudio.functional.melscale_fbanks(sample_rate=sample_rate, n_freqs=(self.n_fft//2)+1, n_mels=nfilt, f_min=lowfreq,
+                                f_max=highfreq, mel_scale="slaney", norm="slaney").transpose(-1,-2), dtype=torch.float).unsqueeze(0).cuda()
         # self.fb = filterbanks
         # self.window = window_tensor
         self.register_buffer("fb", filterbanks)
