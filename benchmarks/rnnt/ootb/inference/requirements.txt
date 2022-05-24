@@ -1,7 +1,7 @@
 ascii-graph==1.5.1
 attrs==21.4.0
-audioread==21.4.0
-autopep8==21.4.0
+audioread==2.1.9
+autopep8==1.6.0
 backcall==0.2.0
 chardet==4.0.0
 coverage==6.4
