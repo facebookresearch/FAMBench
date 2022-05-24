@@ -77,9 +77,6 @@ class RNNTLoss(torch.nn.Module):
             y = y.cuda()
             y_lens = y_lens.cuda()
 
-        print("-"*16)
-        print(self.use_cuda);
-        print(logits.is_cuda);
 
         loss = self.rnnt_loss(
             logits, y, logit_lens, y_lens
