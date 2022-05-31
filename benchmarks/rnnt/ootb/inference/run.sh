@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-work_dir=/home/jpvillam/FAMBench-dllehr/benchmarks/rnnt/ootb/inference/workspace
+work_dir=/data/inference/
 local_data_dir=$work_dir/local_data
 librispeech_download_dir=$local_data_dir/LibriSpeech
 stage=3

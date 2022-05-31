@@ -502,7 +502,7 @@ def main():
         fb5logger.run_start()
     total_batches = 0
     start_time = time.time()
-    MAX_TIME = 520.0
+    MAX_TIME = 120.0
     # Start Batch Loop
 
     # training loop
@@ -629,7 +629,7 @@ def main():
             break
 
         if epoch % args.val_frequency == 0:
-            evaluate(epoch, step, val_loader, val_feat_proc,
+            wer = evaluate(epoch, step, val_loader, val_feat_proc,
                 tokenizer.detokenize, ema_model, loss_fn,
                 greedy_decoder, args.amp, args)
 
