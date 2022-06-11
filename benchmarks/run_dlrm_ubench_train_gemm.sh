@@ -3,7 +3,7 @@ device='cpu'
 dataset='A'
 dtype='float'
 
-usage() { echo "Usage: $0 [-s <steps>] [-d <'cpu'|'gpu'>] [-l <dir to save log>] [-c <config>] [-t <'float'|'float16'|'bfloat16']"; exit 1; }
+usage() { echo "Usage: $0 [-s <steps>] [-d <'cpu'|'gpu'>] [-l <dir to save log>] [-c <config>] [-t <'float'|'float16'|'bfloat16'|'tf32']"; exit 1; }
 
 while getopts "s:d:l:c:t:h" flag
 do

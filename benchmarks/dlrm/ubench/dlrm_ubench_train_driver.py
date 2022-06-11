@@ -43,11 +43,11 @@ if __name__ == "__main__":
 
     parser_linear = subparsers.add_parser('linear', help='measure mlp performance')
     parser_linear.add_argument('--optimizer-type', default='sgd', help='Optimizer: SGD', choices=['sgd'])
-    parser_linear.add_argument('-t', '--dtype', default='float', help="data type", choices=["float", "float16", "bfloat16"])
+    parser_linear.add_argument('-t', '--dtype', default='float', help="data type", choices=["float", "float16", "bfloat16", "tf32"])
     parser_linear.add_argument('-d', '--dataset', default='small')
 
     parser_linear = subparsers.add_parser('gemm', help='measure gemm performance')
-    parser_linear.add_argument('-t', '--dtype', default='float', help="data type", choices=["float", "float16", "bfloat16"])
+    parser_linear.add_argument('-t', '--dtype', default='float', help="data type", choices=["float", "float16", "bfloat16", "tf32"])
     parser_linear.add_argument('-d', '--dataset', default='small')
     # FB5 Logging
 
@@ -95,7 +95,7 @@ if __name__ == "__main__":
         global_flops = 0
         global_elap = 0
         if args.fb5logger is not None:
-            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
+            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset + "_" + args.dtype, score_metric=loggerconstants.TFPS)
             fb5logger.run_start()
         if args.dataset == 'A':
             run_dataset = dataset.mlp_A
@@ -108,8 +108,11 @@ if __name__ == "__main__":
             run_dataset = ast.literal_eval(args.dataset)
         for i in range(len(run_dataset)):
             layer_num, input_size, hidden_size, output_size, batch_size = run_dataset[i]
+            layers_size = [input_size] + [hidden_size]*layer_num + [output_size]
+            layers_size = [int(size) for size in layers_size]
+            print(layers_size)
             elap, loss = klinear.run_single(
-                args, layer_num, input_size, hidden_size, output_size, batch_size
+                args, layers_size, batch_size
             )
             elap /= args.steps
 
@@ -130,7 +133,7 @@ if __name__ == "__main__":
         global_flops = 0
         global_elap = 0
         if args.fb5logger is not None:
-            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset, score_metric=loggerconstants.TFPS)
+            fb5logger.header("DLRM", "UBENCH", "train", args.kernel + "_" + args.dataset + "_" + args.dtype, score_metric=loggerconstants.TFPS)
             fb5logger.run_start()
         if args.dataset == 'small':
             small_dataset = [ (256, 1024, 1024), ]
