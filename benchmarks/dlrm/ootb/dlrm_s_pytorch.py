@@ -653,6 +653,7 @@ class DLRM_Net(nn.Module):
         quantize_mlp_with_bit=False,
         quantize_emb_with_bit=False,
         use_torch2trt_for_mlp=False,
+        use_tf32=False,
     ):
         super(DLRM_Net, self).__init__()
 
@@ -721,6 +722,11 @@ class DLRM_Net(nn.Module):
 
             if proj_size > 0:
                 self.proj_l = project.create_proj(len(ln_emb) + 1, proj_size)
+
+            # tf32
+            if quantize_mlp_with_bit == 32 and use_tf32 == True:
+                torch.backends.cudnn.allow_tf32 = True
+                torch.backends.cuda.matmul.allow_tf32 = True
 
             # mlp quantization
             self.quantize_mlp_with_bit = quantize_mlp_with_bit
@@ -1444,6 +1450,8 @@ def run():
     )
     # torch2trt
     parser.add_argument("--use-torch2trt-for-mlp", action="store_true", default=False)
+    #tf32
+    parser.add_argument("--use-tf32", action="store_true", default=False)
     # distributed
     parser.add_argument("--local_rank", type=int, default=-1)
     parser.add_argument("--dist-backend", type=str, default="")
@@ -1817,6 +1825,7 @@ def run():
         quantize_mlp_with_bit=args.quantize_mlp_with_bit,
         quantize_emb_with_bit=args.quantize_emb_with_bit,
         use_torch2trt_for_mlp=args.use_torch2trt_for_mlp,
+        use_tf32=args.use_tf32,
     )
 
     # test prints
