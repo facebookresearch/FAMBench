@@ -109,9 +109,9 @@ def generate_dataset(num_batches, batch_size, vocab_size, inference_only, seqlen
     Y_data = []
     for _ in range(num_batches):
         x_sample, y_sample = generate_single_sample()
-        X_data.append(x_sample)
+        X_data.append(x_sample.pin_memory())
         if(not inference_only):
-            Y_data.append(y_sample)
+            Y_data.append(y_sample.pin_memory())
 
     return X_data, Y_data
 
@@ -156,6 +156,10 @@ def run():
     x_l, y_true_l = generate_dataset(args.num_batches, args.batch_size, 
         args.vocab_size, args.inference_only, uniform_seqlen=args.sequence_length, 
         seqlen_dist=args.seqlen_dist, seq_len_dist_max=args.seqlen_dist_max)
+
+    if args.use_tf32:
+        torch.backends.cudnn.allow_tf32 = True
+        torch.backends.cuda.matmul.allow_tf32 = True
 
     # warmup
     if args.inference_only:
