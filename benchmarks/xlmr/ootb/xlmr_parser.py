@@ -47,6 +47,7 @@ def init_argparse() -> argparse.ArgumentParser:
     parser.add_argument("--half-model", action="store_true", default=False)
     parser.add_argument('--seqlen-dist', type=str, default=None) # sequence length distribution. Type is string in JSON format. 
     parser.add_argument('--seqlen-dist-max', type=int, default=256) # maximum allowed sequence length
+    parser.add_argument("--use-tf32", action="store_true", default=False)
     
     return parser
 
