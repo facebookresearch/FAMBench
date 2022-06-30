@@ -20,7 +20,7 @@ conda activate proxy-rnnt
 
 # Install PyTorch dependencies
 pip install requests bs4 argparse
-conda install pytorch==1.7.0 torchvision==0.8.0 torchaudio==0.7.0 cudatoolkit=11.0 -c pytorch
+pip install torch==1.7.1+cu110 torchvision==0.8.2+cu110 torchaudio==0.7.2 -f https://download.pytorch.org/whl/torch_stable.html
 
 # Install CUDA Toolkit 11.0
 wget https://developer.download.nvidia.com/compute/cuda/repos/ubuntu2004/x86_64/cuda-keyring_1.0-1_all.deb
@@ -37,7 +37,8 @@ export TORCH_CUDA_ARCH_LIST=8.0
 
 # Install required packages
 pip install sox
-sudo apt-get install libsndfile1 jq numactl cmake
+pip install protobuf==3.11.3
+sudo apt-get install libsndfile1 jq numactl cmake sox
 pip install unidecode==1.1.1 inflect==4.1.0 pandas==1.1.5 sentencepiece==0.1.94 librosa==0.8.0 soundfile==0.10.3.post1 tensorboard==2.3.0 numba==0.48.0
 
 # Install dllogger and mlcommons logger
@@ -47,27 +48,7 @@ pip install https://github.com/mlcommons/logging/archive/d08740cadb4188a5ebeb84a
 # Install Nvidia Dali
 pip install --no-cache --extra-index-url https://developer.download.nvidia.com/compute/redist nvidia-dali-cuda110==0.28.0
 
-# Install Warp-Transducer library
-# git clone https://github.com/HawkAaron/warp-transducer deps/warp-transducer
-# cd deps/warp-transducer/
-# git checkout f546575109111c455354861a0567c8aa794208a2
-# sed -i 's/set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_30,code=sm_30 -O2")/#set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_30,code=sm_30 -O2")/g' CMakeLists.txt
-# sed -i 's/set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_75,code=sm_75")/set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_80,code=sm_80")/g' CMakeLists.txt
-# mkdir build
-# cd build/
-# cmake ..
-# make -j32
-# export CUDA_HOME="/usr/local/cuda"
-# export WARP_RNNT_PATH=`pwd`
-# export CUDA_TOOLKIT_ROOT_DIR="$CUDA_HOME"
-# export LD_LIBRARY_PATH="$CUDA_HOME/extras/CUPTI/lib64:$LD_LIBRARY_PATH"
-# export LIBRARY_PATH="$CUDA_HOME/lib64:$LIBRARY_PATH"
-# export LD_LIBRARY_PATH="$CUDA_HOME/lib64:$LD_LIBRARY_PATH"
-# export CFLAGS="-I$CUDA_HOME/include $CFLAGS"
-# cd ../pytorch_binding
-# python3 setup.py install
-# cd ../../..
-
+# Install warp-rnnt library
 pip install warp-rnnt
 
 # Install Nvidia CuDNN
