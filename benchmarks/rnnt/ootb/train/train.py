@@ -493,6 +493,7 @@ def main():
                     with amp.scale_loss(loss, optimizer) as scaled_loss:
                         scaled_loss.backward()
                 else:
+                    loss = loss.mean()
                     loss.backward()
                 loss_item = loss.item()
                 del loss

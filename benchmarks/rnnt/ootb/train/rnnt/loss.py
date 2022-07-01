@@ -16,7 +16,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from warprnnt_pytorch import RNNTLoss as WarpRNNTLoss
+from warp_rnnt import RNNTLoss as WarpRNNTLoss
 
 
 class RNNTLoss(torch.nn.Module):
@@ -77,9 +77,7 @@ class RNNTLoss(torch.nn.Module):
             y = y.cuda()
             y_lens = y_lens.cuda()
 
-        loss = self.rnnt_loss(
-            acts=logits, labels=y, act_lens=logit_lens, label_lens=y_lens
-        )
+        loss = self.rnnt_loss.apply(logits, y, logit_lens, y_lens)
 
         # del new variables that may have been created due to float/int/cuda()
         del logits, y, logit_lens, y_lens
