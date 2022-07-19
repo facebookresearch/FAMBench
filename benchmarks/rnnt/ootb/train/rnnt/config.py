@@ -11,12 +11,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Modifications Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+# Notified per clause 4(b) of the license
 
 import copy
 import inspect
 import yaml
 
-from common.data.dali.pipeline import PipelineParams, SpeedPerturbationParams
 from common.data.text import Tokenizer
 from common.data import features
 from common.helpers import print_once
@@ -75,19 +76,27 @@ def input(conf_yaml, split='train'):
     conf_cutoutau = conf.pop('cutout_augment', None)
 
     # Validate known inner classes
-    inner_classes = [
-        (conf_dataset, 'speed_perturbation', SpeedPerturbationParams),
-    ]
     amp=['optim_level']
-    for conf_tgt, key, klass in inner_classes:
-        if key in conf_tgt:
-            conf_tgt[key] = validate_and_fill(klass, conf_tgt[key], optional=amp)
+    try:
+        from common.data.dali.pipeline import SpeedPerturbationParams
+        inner_classes = [
+            (conf_dataset, 'speed_perturbation', SpeedPerturbationParams),
+        ]
+        for conf_tgt, key, klass in inner_classes:
+            if key in conf_tgt:
+                conf_tgt[key] = validate_and_fill(klass, conf_tgt[key], optional=amp)
+    except:
+        print("WARNING: Not loading DALI SpeedPerturbationParams")
 
     for k in conf:
         raise ValueError(f'Unknown key {k}')
 
     # Validate outer classes
-    conf_dataset = validate_and_fill(PipelineParams, conf_dataset)
+    try:
+        from common.data.dali.pipeline import PipelineParams, SpeedPerturbationParams
+        conf_dataset = validate_and_fill(PipelineParams, conf_dataset)
+    except:
+        print("WARNING: Not loading DALI PipelineParams")
 
     conf_features = validate_and_fill(features.FilterbankFeatures, conf_features, optional=amp)
     conf_splicing = validate_and_fill(features.FrameSplicing, conf_splicing, optional=amp)

@@ -13,6 +13,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Modifications Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+# Notified per clause 4(b) of the license
 
 export OMP_NUM_THREADS=1
 
@@ -23,7 +25,7 @@ export OMP_NUM_THREADS=1
 : ${FB5CONFIG:=${5}}
 : ${CHECKPOINT:-}
 : ${CUDNN_BENCHMARK:=true}
-: ${NUM_GPUS:=1}
+: ${NUM_GPUS:=8}
 : ${AMP:=false}
 : ${GLOBAL_BATCH_SIZE:=1024}
 : ${VAL_BATCH_SIZE:=2}
@@ -39,7 +41,8 @@ export OMP_NUM_THREADS=1
 : ${SAVE_AT_THE_END:=false}
 : ${EPOCHS_THIS_JOB:=0}
 : ${RESUME:=true}
-: ${DALI_DEVICE:="cpu"}
+: ${NODALI:=true}
+: ${DEVICE:="gpu"}
 : ${VAL_FREQUENCY:=1}
 : ${PREDICTION_FREQUENCY:=1000}
 : ${BETA1:=0.9}
@@ -81,7 +84,7 @@ ARGS+=" --weight_decay=1e-3"
 ARGS+=" --log_frequency=$LOG_FREQUENCY"
 ARGS+=" --val_frequency=$VAL_FREQUENCY"
 ARGS+=" --grad_accumulation_steps=$GRAD_ACCUMULATION_STEPS "
-ARGS+=" --dali_device=$DALI_DEVICE"
+ARGS+=" --device=$DEVICE"
 ARGS+=" --beta1=$BETA1"
 ARGS+=" --beta2=$BETA2"
 
@@ -90,6 +93,7 @@ ARGS+=" --beta2=$BETA2"
 [ "$AMP" = true ] &&                 ARGS+=" --amp"
 [ "$RESUME" = true ] &&              ARGS+=" --resume"
 [ "$CUDNN_BENCHMARK" = true ] &&     ARGS+=" --cudnn_benchmark"
+[ "$NODALI" = true ] &&              ARGS+=" --nodali"
 [ "$LOG_NORM" = true ] &&            ARGS+=" --log_norm"
 [ "$SAVE_AT_THE_END" = true ] &&     ARGS+=" --save_at_the_end"
 [ -n "$CHECKPOINT" ] &&              ARGS+=" --ckpt=$CHECKPOINT"

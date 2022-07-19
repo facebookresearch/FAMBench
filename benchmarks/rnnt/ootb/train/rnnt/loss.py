@@ -12,11 +12,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Modifications Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+# Notified per clause 4(b) of the license
 
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from warprnnt_pytorch import RNNTLoss as WarpRNNTLoss
+import torchaudio
 
 
 class RNNTLoss(torch.nn.Module):
@@ -29,7 +31,7 @@ class RNNTLoss(torch.nn.Module):
 
     def __init__(self, blank_idx):
         super().__init__()
-        self.rnnt_loss = WarpRNNTLoss(blank=blank_idx)
+        self.rnnt_loss = torchaudio.transforms.RNNTLoss(blank=blank_idx).cuda()
         self.use_cuda = torch.cuda.is_available()
 
     def forward(self, logits, logit_lens, y, y_lens):
@@ -77,8 +79,9 @@ class RNNTLoss(torch.nn.Module):
             y = y.cuda()
             y_lens = y_lens.cuda()
 
+
         loss = self.rnnt_loss(
-            acts=logits, labels=y, act_lens=logit_lens, label_lens=y_lens
+            logits, y, logit_lens, y_lens
         )
 
         # del new variables that may have been created due to float/int/cuda()

@@ -1,8 +1,10 @@
 #/bin/bash
+# Modifications Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+# Notified per clause 4(b) of the license
 
 set -euo pipefail
 
-work_dir=/export/b07/ws15dgalvez/mlperf-rnnt-librispeech
+work_dir=/data/inference/
 local_data_dir=$work_dir/local_data
 librispeech_download_dir=$local_data_dir/LibriSpeech
 stage=3
