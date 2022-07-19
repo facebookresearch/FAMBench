@@ -16,7 +16,7 @@ mkdir -p $install_dir
 install_dir=$(readlink -f $install_dir)
 
 set +u
-#source "$($CONDA_EXE info --base)/etc/profile.d/conda.sh"
+source "$($CONDA_EXE info --base)/etc/profile.d/conda.sh"
 set -u
 
 # stage -1: install dependencies
@@ -41,7 +41,7 @@ fi
 export PATH="$install_dir/bin/:$PATH"
 
 set +u
-#conda activate mlperf-rnnt
+conda activate mlperf-rnnt
 set -u
 
 # stage 0: download model. Check checksum to skip?

@@ -307,9 +307,6 @@ def main():
         def forward(self, x):
             return (x[0].permute(2, 0, 1), *x[1:])
 
-    #OUTPUT: specaugm_kw {'freq_masks': 2, 'min_freq': 0, 'max_freq': 20, 'time_masks': 10, 'min_time': 0, 'max_time': 0.03, 'noise_magnitude': 0}
-    print("specaugm_kw {}".format(train_specaugm_kw))
-    print("train_splicing_kw {}".format(train_splicing_kw))
     train_augmentations = torch.nn.Sequential(
         train_specaugm_kw and features.SpecAugment(optim_level=args.amp, **train_specaugm_kw) or torch.nn.Identity(),
         features.FrameSplicing(optim_level=args.amp, **train_splicing_kw),
@@ -363,19 +360,6 @@ def main():
                                     tokenizer=tokenizer)
     else:
         from common.data.data_loader import AudioDataLoader
-
-        #OUTPUT: tokenizer: {'labels': [' ', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x', 'y', 'z', "'"], 'sentpiece_model': '/data/rnnt/datasets/sentencepieces/librispeech1023.model'}
-        print("tokenizer: {}".format(tokenizer_kw))
-        #OUTPUT: tokenizer: <common.data.text.Tokenizer object at 0x7f3943f990d0>
-        print("tokenizer: {}".format(tokenizer))
-        #OUTPUT tokenizer: {'normalize_transcripts': True, 'sample_rate': 16000, 'trim_silence': True}
-        print("tokenizer: {}".format(val_dataset_kw))
-        #OUTPUT tokenizer: {'sample_rate': 16000, 'window_size': 0.02, 'window_stride': 0.01, 'window': 'hann', 'normalize': 'per_feature', 'n_fft': 512, 'preemph': 0.97, 'n_filt': 80, 'lowfreq': 0, 'highfreq': None, 'log': True, 'dither': 1e-05}
-        print("tokenizer: {}".format(val_features_kw))
-        #OUTPUT tokenizer: {'max_duration': 16.7, 'normalize_transcripts': True, 'sample_rate': 16000, 'speed_perturbation': {'max_rate': 1.15, 'min_rate': 0.85, 'p': 1.0}, 'trim_silence': True}
-        print("tokenizer: {}".format(train_dataset_kw))
-        #OUTPUT tokenizer: {'sample_rate': 16000, 'window_size': 0.02, 'window_stride': 0.01, 'window': 'hann', 'normalize': 'per_feature', 'n_fft': 512, 'preemph': 0.97, 'n_filt': 80, 'lowfreq': 0, 'highfreq': None, 'log': True, 'dither': 1e-05}
-        print("tokenizer: {}".format(train_features_kw))
 
         #TODO, pass in config data for sample_rate, etc. potentially use wrapper class to drive dataset, sampler, and dataloader creation, returning just the dataloader
         train_loader = AudioDataLoader(
@@ -510,7 +494,6 @@ def main():
     # training loop
     model.train()
     for epoch in range(start_epoch + 1, args.epochs + 1):
-        print("Epoch... {0}".format(epoch), flush=True)
         if args.mlperf:
             logging.log_start(logging.constants.BLOCK_START,
                               metadata=dict(first_epoch_num=epoch,
@@ -609,7 +592,6 @@ def main():
 
                     # FB5 Logger
                     if (time.time() - start_time) > MAX_TIME:
-                        print("Max time in batch",flush=True)
                         break
 
                 step_start_time = time.time()
@@ -627,7 +609,6 @@ def main():
 
         # FB5 Logger
         if (time.time() - start_time) > MAX_TIME:
-            print("Max time in epoch", flush=True)
             break
 
         if epoch % args.val_frequency == 0:
@@ -658,7 +639,6 @@ def main():
         if 0 < args.epochs_this_job <= epoch - start_epoch:
             print_once(f'Finished after {args.epochs_this_job} epochs.')
             break
-        print("End of epoch", flush=True)
         # end of epoch
 
     log((), None, 'train_avg', {'throughput': epoch_utts / epoch_time})
