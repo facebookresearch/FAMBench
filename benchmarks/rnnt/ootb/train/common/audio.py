@@ -11,12 +11,14 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Modifications Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+# Notified per clause 4(b) of the license
 
 import random
 import soundfile as sf
 
-import librosa
 import torch
+import torchaudio
 import numpy as np
 
 import sox
@@ -42,7 +44,7 @@ class AudioSegment(object):
     """
 
     def __init__(self, filename, target_sr=None, int_values=False, offset=0,
-                 duration=0, trim=False, trim_db=60):
+                 duration=0, trim=False, trim_db=-60):
         """Create audio segment from samples.
 
         Samples are converted to float32 internally, with int scaled to [-1, 1].
@@ -67,10 +69,11 @@ class AudioSegment(object):
 
         samples = self._convert_samples_to_float32(samples)
         if target_sr is not None and target_sr != sample_rate:
-            samples = librosa.core.resample(samples, sample_rate, target_sr)
+            samples = torchaudio.functional.resample(samples, sample_rate, target_sr)
             sample_rate = target_sr
         if trim:
-            samples, _ = librosa.effects.trim(samples, trim_db)
+            # Might only be trimming from the front
+            samples = torchaudio.functional.vad(samples, sample_rate, trim_db)
         self._samples = samples
         self._sample_rate = sample_rate
         if self._samples.ndim >= 2:

@@ -1,4 +1,6 @@
 #/bin/bash
+# Modifications Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+# Notified per clause 4(b) of the license
 
 set -euox pipefail
 
@@ -31,6 +33,7 @@ export TORCH_CUDA_ARCH_LIST=8.0
 
 # Install required packages
 sudo apt-get install sox libsndfile1 jq numactl cmake
+pip install sox
 pip install unidecode==1.1.1 inflect==4.1.0 pandas==1.1.5 sentencepiece==0.1.94 librosa==0.8.0 soundfile==0.10.3.post1 tensorboard==2.3.0 numba==0.48.0
 
 # Install dllogger and mlcommons logger

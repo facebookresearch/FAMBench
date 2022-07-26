@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Modifications Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+# Notified per clause 4(b) of the license
 
 import sys
 import os
@@ -62,6 +64,7 @@ class PytorchSUT:
         self.audio_preprocessor = torch.jit.script(self.audio_preprocessor)
         self.audio_preprocessor = torch.jit._recursive.wrap_cpp_module(
             torch._C._freeze_module(self.audio_preprocessor._c))
+        self.audio_preprocessor = self.audio_preprocessor.cuda()
 
         model = RNNT(
             feature_config=featurizer_config,
@@ -81,8 +84,9 @@ class PytorchSUT:
         model.joint = torch.jit._recursive.wrap_cpp_module(
             torch._C._freeze_module(model.joint._c))
         model = torch.jit.script(model)
+        model = model.cuda()
 
-        self.greedy_decoder = ScriptGreedyDecoder(len(rnnt_vocab) - 1, model)
+        self.greedy_decoder = ScriptGreedyDecoder(len(rnnt_vocab) - 1, model).cuda()
 
     def issue_queries(self, query_samples):
         for query_sample in query_samples:
@@ -92,14 +96,13 @@ class PytorchSUT:
             waveform = np.expand_dims(waveform, 0)
             waveform_length = np.expand_dims(waveform_length, 0)
             with torch.no_grad():
-                waveform = torch.from_numpy(waveform)
+                waveform = torch.from_numpy(waveform).cuda()
                 waveform_length = torch.from_numpy(waveform_length)
                 feature, feature_length = self.audio_preprocessor.forward((waveform, waveform_length))
                 assert feature.ndim == 3
                 assert feature_length.ndim == 1
                 feature = feature.permute(2, 0, 1)
-
-                _, _, transcript = self.greedy_decoder.forward(feature, feature_length)
+                _, _, transcript = self.greedy_decoder.forward(feature.cuda(), feature_length)
 
             assert len(transcript) == 1
             response_array = array.array('q', transcript[0])

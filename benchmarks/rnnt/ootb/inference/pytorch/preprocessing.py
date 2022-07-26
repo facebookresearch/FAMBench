@@ -11,6 +11,8 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+# Modifications Copyright (c) 2022 Advanced Micro Devices, Inc. All rights reserved.
+# Notified per clause 4(b) of the license
 
 from typing import Tuple
 
@@ -30,6 +32,7 @@ class AudioPreprocessing(nn.Module):
         self.optim_level = kwargs.get(
             'optimization_level', Optimization.nothing)
         self.featurizer = FeatureFactory.from_config(kwargs)
+        self.featurizer = self.featurizer.cuda()
 
     def forward(self, x: Tuple[torch.Tensor, torch.Tensor]) -> Tuple[torch.Tensor, torch.Tensor]:
         input_signal, length = x
