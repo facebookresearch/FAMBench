@@ -25,7 +25,7 @@ export OMP_NUM_THREADS=1
 : ${FB5CONFIG:=${5}}
 : ${CHECKPOINT:-}
 : ${CUDNN_BENCHMARK:=true}
-: ${NUM_GPUS:=8}
+: ${NUM_GPUS:=1}
 : ${AMP:=false}
 : ${GLOBAL_BATCH_SIZE:=1024}
 : ${VAL_BATCH_SIZE:=2}
@@ -41,7 +41,7 @@ export OMP_NUM_THREADS=1
 : ${SAVE_AT_THE_END:=false}
 : ${EPOCHS_THIS_JOB:=0}
 : ${RESUME:=true}
-: ${NODALI:=true}
+: ${NODALI:=false}
 : ${DEVICE:="gpu"}
 : ${VAL_FREQUENCY:=1}
 : ${PREDICTION_FREQUENCY:=1000}
