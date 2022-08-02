@@ -21,16 +21,19 @@ git clone --recurse-submodules -b rocm_rnnt https://github.com/ROCmSoftwarePlatf
 cd audio/ && python3 setup.py install && cd -
 
 # Install train requirements.
-pip install -r ./benchmarks/rnnt/ootb/train/requirements.txt
+pip install -r rnnt/ootb/train/requirements.txt
 
 # Set data location.
 mkdir -p $DATASET_DIR
 
-# Fix benchmarks/rnnt/ootb/train/configs/baseline_v3-1023sp.yaml
-sed -i "s@<your $DATASET_DIR>@$DATASET_DIR@" ./benchmarks/rnnt/ootb/train/configs/baseline_v3-1023sp.yaml
+# Fix rnnt/ootb/train/configs/baseline_v3-1023sp.yaml
+sed -i "s@<your $DATASET_DIR>@$DATASET_DIR@" rnnt/ootb/train/configs/baseline_v3-1023sp.yaml
+
+# Disable DALI to use Torch Audio.
+sed -i "s/NODALI:=false/NODALI:=true/" rnnt/ootb/train/scripts/train.sh
 
 if [ -z "$(ls -A ${DATASET_DIR})" ]; then
     # Download and preprocess
-    bash ./benchmarks/rnnt/ootb/train/scripts/download_librispeech.sh
-    bash ./benchmarks/rnnt/ootb/train/scripts/preprocess_librispeech.sh
+    bash rnnt/ootb/train/scripts/download_librispeech.sh
+    bash rnnt/ootb/train/scripts/preprocess_librispeech.sh
 fi
