@@ -10,3 +10,6 @@
 [submodule "benchmarks/cvt/ootb/CvT"]
 	path = benchmarks/cvt/ootb/CvT
 	url = https://github.com/gopitk/CvT.git
+[submodule "benchmarks/bevt/ootb/BEVT"]
+	path = benchmarks/bevt/ootb/BEVT
+	url = https://github.com/mindest/BEVT.git

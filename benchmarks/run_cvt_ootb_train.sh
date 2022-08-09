@@ -15,7 +15,7 @@ done
 shift $((OPTIND-1))
 
 benchmark=cvt
-implementation=ubench
+implementation=ootb
 mode=${task}
 # LOGGER_FILE="${LOG_DIR}/${benchmark}_${implementation}_${mode}_g${NUM_GPUS}.log"
 
