@@ -1,0 +1,26 @@
+FROM pytorch/pytorch:1.11.0-cuda11.3-cudnn8-devel
+
+# Install apex
+WORKDIR /workspace/
+ENV TORCH_CUDA_ARCH_LIST='7.0;7.5;8.0;8.6'
+RUN apt-key adv --fetch-keys https://developer.download.nvidia.com/compute/cuda/repos/ubuntu1804/x86_64/3bf863cc.pub
+RUN apt update && apt install -y vim git
+
+RUN git clone https://github.com/NVIDIA/apex && \
+    cd apex && \
+    git config user.email user@example.com && \
+    git config user.name user && \
+    git fetch origin pull/1282/head:tmp_branch && \
+    git cherry-pick 01802f623c9b54199566871b49f94b2d07c3f047 && \
+    pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./ && \
+    cd .. && rm apex -r
+
+RUN pip install mmcv-full -f https://download.openmmlab.com/mmcv/dist/cu113/torch1.11.0/index.html
+
+RUN pip install DALL-E timm einops decord nvtx scipy
+
+RUN pip install matplotlib seaborn
+
+RUN apt install -y libgl1 libglib2.0-0
+
+# RUN apt update && apt install -y nsight-systems-2021.2.4

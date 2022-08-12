@@ -11,11 +11,11 @@ export BEVT_MAX_STEPS=${5:-1200}
 export PYTHONPATH=$(pwd):${PYTHONPATH}
 export OMP_NUM_THREADS=1
 
-RANK=${RANK:=0}
-MASTER_ADDR=${MASTER_ADDR:=127.0.0.1}
-NODE_COUNT=${NODE_COUNT:=1}
+NODE_RANK=${NODE_RANK:-0}
+MASTER_ADDR=${MASTER_ADDR:-127.0.0.1}
+MASTER_PORT=${MASTER_PORT:-12345}
 
-DATAROOT=../BEVT_DATA/
+DATAROOT=/tmp/BEVT_DATA/
 pretrained_ckpt=${DATAROOT}/swin_base_image_stream_pretrain.pth
 tokenizer_path=${DATAROOT}/dall_e_tokenizer_weight
 work_dir=/tmp/swin_base_bevt_twostream
@@ -47,15 +47,23 @@ echo -e "master addr: ${MASTER_ADDR}\nmaster port: ${MASTER_PORT}"
 
 cd BEVT/
 
-set -x
-python -m torch.distributed.launch --nnodes ${NODE_COUNT} \
-     --node_rank ${NODE_RANK} \
-     --master_addr ${MASTER_ADDR} \
-     --master_port ${MASTER_PORT} \
-     --nproc_per_node ${NUM_GPUS} \
-     tools/train.py configs/recognition/swin/swin_base_patch244_window877_bevt_in1k_k400.py \
-         --launcher pytorch --work-dir ${work_dir} \
-         --cfg-options ${specified_configs} \
-         --seed 0 --deterministic
+if [ -f ${work_dir}/latest.pth ]; then rm ${work_dir}/*.pth; fi
 
-python tools/analysis/analyze_logs.py cal_train_time ${work_dir}/*.log.json 2>&1
+(
+    set -x
+    python -m torch.distributed.launch --nnodes ${NODE_COUNT} \
+        --node_rank ${NODE_RANK} \
+        --master_addr ${MASTER_ADDR} \
+        --master_port ${MASTER_PORT} \
+        --nproc_per_node ${NUM_GPUS} \
+        tools/train.py configs/recognition/swin/swin_base_patch244_window877_bevt_in1k_k400.py \
+            --launcher pytorch --work-dir ${work_dir} \
+            --cfg-options ${specified_configs} \
+            --seed 0 --deterministic
+)
+
+BEVT_GLOBAL_BSZ=$[${NODES}*${NUM_GPUS}*${BS}]
+
+python tools/analysis/analyze_logs.py cal_train_time $(ls ${work_dir}/*.log.json | tail -2 | head -1) | tee >(tail -2 | grep -o '[0-9.]\+' > SEC_PER_ITER)
+
+echo Throughput: `awk -v x=${BEVT_GLOBAL_BSZ} -v y=$(cat SEC_PER_ITER) 'BEGIN{printf "%.2f\n",x/y}'` samples/s
