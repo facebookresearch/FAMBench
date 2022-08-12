@@ -15,10 +15,11 @@ NODE_RANK=${NODE_RANK:-0}
 MASTER_ADDR=${MASTER_ADDR:-127.0.0.1}
 MASTER_PORT=${MASTER_PORT:-12345}
 
-DATAROOT=/tmp/BEVT_DATA/
+cd BEVT/
+DATAROOT=../BEVT_DATA
 pretrained_ckpt=${DATAROOT}/swin_base_image_stream_pretrain.pth
 tokenizer_path=${DATAROOT}/dall_e_tokenizer_weight
-work_dir=/tmp/swin_base_bevt_twostream
+work_dir=../BEVT_OUTPUT/$(date +%Y%m%d.%H%M%S).${NODES}x${NUM_GPUS}x${BS}
 
 prefix=${DATAROOT}/kinetics/kinetics400_256
 image_data_root=${DATAROOT}/ILSVRC2012/train
@@ -45,8 +46,6 @@ specified_configs="tokenizer_path=${tokenizer_path} model.cls_head.vae_weight_pa
 echo -e "rank: ${NODE_RANK}\nnode count: ${NODE_COUNT}"
 echo -e "master addr: ${MASTER_ADDR}\nmaster port: ${MASTER_PORT}"
 
-cd BEVT/
-
 if [ -f ${work_dir}/latest.pth ]; then rm ${work_dir}/*.pth; fi
 
 (
@@ -64,6 +63,6 @@ if [ -f ${work_dir}/latest.pth ]; then rm ${work_dir}/*.pth; fi
 
 BEVT_GLOBAL_BSZ=$[${NODES}*${NUM_GPUS}*${BS}]
 
-python tools/analysis/analyze_logs.py cal_train_time $(ls ${work_dir}/*.log.json | tail -2 | head -1) | tee >(tail -2 | grep -o '[0-9.]\+' > SEC_PER_ITER)
+python tools/analysis/analyze_logs.py cal_train_time ${work_dir}/*.log.json | tee >(tail -2 | grep -o '[0-9.]\+' > ${work_dir}/SEC_PER_ITER)
 
-echo Throughput: `awk -v x=${BEVT_GLOBAL_BSZ} -v y=$(cat SEC_PER_ITER) 'BEGIN{printf "%.2f\n",x/y}'` samples/s
+echo Throughput: `awk -v x=${BEVT_GLOBAL_BSZ} -v y=$(cat ${work_dir}/SEC_PER_ITER) 'BEGIN{printf "%.2f\n",x/y}'` samples/s

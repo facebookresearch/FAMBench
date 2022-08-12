@@ -52,7 +52,7 @@ For MI200 we run `bash run_bevt_train.sh 1 b 4`. Global batch size `4b`.
 Sample perf data on a single node:
 
 | Device | # GPUs/GCDs | Mini-bsz | Global bsz | Avg iter time (s/it) | Throughput (samples/s) |
-| :----: | ----------: | -------: | ---------: |-------------------: | ---------------------: |
+| :----: | ----------: | -------: | ---------: | -------------------: | ---------------------: |
 |  A100  | 1  | 8 | 8  | 0.4390 | 18.22 |
 |  A100  | 2  | 8 | 16 | 0.4515 | 35.44 |
 |  A100  | 4  | 8 | 32 | 0.5052 | 63.34 |
