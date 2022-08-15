@@ -4,8 +4,8 @@ set -ex
 cd CvT
 pip install -r requirements-alt.txt
 
-mkdir -p /tmp/DATASET
-cd /tmp
+mkdir -p ../DATASET
+cd ..
 
 if [ ! -d DATASET/imagenet ] ; then
     if [ ! -f imagenette2-320.tgz ] ; then

@@ -1,0 +1,22 @@
+# MoE
+
+## Run the benchmark
+
+1. Run container from Docker image.
+
+   - For CUDA: `nvcr.io/nvidia/pytorch:22.02-py3`
+   - For ROCm: `rocm/pytorch:rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0`
+
+2. Prepare environment and data.
+
+    Simply run
+
+    ```bash
+    bash prep_env_data.sh
+    ```
+
+3. Run the benchmark.
+
+    ```bash
+    bash run_moe_train.sh [NODES <1>] [GPUS <8>] [MAX_TOKENS <8192>]
+    ```

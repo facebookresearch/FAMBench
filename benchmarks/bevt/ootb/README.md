@@ -16,21 +16,10 @@ We use a forked BEVT repo here for benchmark purpose. Follow these steps:
 
 3. Prepare training data and pretrained checkpoints.
 
-    We will download and prepare these files in path `/tmp/BEVT_DATA`.
-
-    Download DALL-E tokenizer weight:
+    We will download and prepare these files in folder `BEVT_DATA`. Just run
 
     ```bash
     bash prep_data.sh
-    ```
-
-    Download pretrained checkpoints from [Google drive link 1](https://drive.google.com/file/d/1VHKAH9YA_VD8M8bfGp2Svreqv0iuikB6/view?usp=sharing).
-
-    Download mini-training data from [Google drive link 2](), and extract:
-
-    ```bash
-    tar -xvf BEVT_mini_data.tgz
-    mv BEVT_mini_data/* /tmp/BEVT_DATA
     ```
 
 4. Run the command.
