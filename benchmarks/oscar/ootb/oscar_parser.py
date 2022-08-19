@@ -11,7 +11,7 @@ class OscarLogParser:
         self.select_epoch = select_epoch
 
     def parse(self, path):
-        print(f"Parse {path}")
+        print(f"Parsing {path}")
         train_time_regex = re.compile(".*Train Time: (?P<train_time>[0-9]*\.[0-9]*).*")
         global_step_regex = re.compile(
             ".*Epoch: (?P<epoch>[0-9]*), global_step: (?P<global_step>[0-9]*).*"
@@ -75,7 +75,6 @@ if __name__ == "__main__":
     parser = OscarLogParser(select_epoch=args.epochs)
     logfile = args.logpath
 
-    print(f"logfile : {logfile}")
     metric = parser.parse(logfile)
 
     labels = list(metric.keys())

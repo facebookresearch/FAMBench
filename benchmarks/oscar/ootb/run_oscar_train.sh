@@ -8,7 +8,7 @@ EPOCH=${4:-1}
 mkdir -p OSCAR_DATA OSCAR_OUTPUT
 OUTPUT_DIR=$(realpath OSCAR_OUTPUT)
 LOG_FILE=${OUTPUT_DIR}/oscar_${NODES}x${GPUS}.bsz${BS}.log
-DATA_DIR=$(realpath OSCAR_DATA)/data/oscar
+DATA_DIR=$(realpath OSCAR_DATA)
 DATA=${DATA_DIR}/dataset/vqa
 MODEL=${DATA_DIR}/best/best
 

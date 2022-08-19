@@ -42,7 +42,7 @@ We use a forked BEVT repo here for benchmark purpose. Follow these steps:
 
 For A100 we run `bash run_bevt_train.sh 1 a 8`. Global batch size `8a`.
 
-For MI250 we run `bash run_bevt_train.sh 1 b 4`. Global batch size `4b`.
+For MI250X we run `bash run_bevt_train.sh 1 b 4`. Global batch size `4b`.
 
 Sample perf data on a single node (keeping mini-bsz of MI250X half as that of A100):
 
