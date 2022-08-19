@@ -1,10 +1,14 @@
+export HSA_ENABLE_SDMA=0
+
 NODES=${1:-1}
 GPUS=${2:-8}
 BS=${3:-128}
 EPOCH=${4:-1}
-LOG_FILE=OSCAR_OUTPUT/oscar_${NODES}x${GPUS}.bsz${BS}.log
 
-DATA_DIR=$(realpath OSCAR_DATA)
+mkdir -p OSCAR_DATA OSCAR_OUTPUT
+OUTPUT_DIR=$(realpath OSCAR_OUTPUT)
+LOG_FILE=${OUTPUT_DIR}/oscar_${NODES}x${GPUS}.bsz${BS}.log
+DATA_DIR=$(realpath OSCAR_DATA)/data/oscar
 DATA=${DATA_DIR}/dataset/vqa
 MODEL=${DATA_DIR}/best/best
 
@@ -14,7 +18,7 @@ MASTER_ADDR=${MASTER_ADDR:=127.0.0.1}
 MASTER_PORT=${MASTER_PORT:=9000}
 
 cd Oscar
-
+export PYTHONPATH=$(pwd):/${PYTHONPATH}
 set -ex
 python -m torch.distributed.launch \
     --nnodes ${NODE_COUNT} \
@@ -38,7 +42,7 @@ python -m torch.distributed.launch \
         --data_dir ${DATA} \
         --model_type bert \
         --model_name_or_path ${MODEL} \
-        --output_dir results \
+        --output_dir ${OUTPUT_DIR} \
         --label_file ${DATA}/trainval_ans2label.pkl \
         --save_epoch 10 \
         --seed 88 \
@@ -55,4 +59,5 @@ python -m torch.distributed.launch \
         --txt_data_dir ${DATA} \
         --fp16 2>&1 | tee ${LOG_FILE}
 
-python oscar_parser.py --logpath ${LOG_FILE}  --epochs 0
+cd ${OUTPUT_DIR}
+python ../oscar_parser.py --logpath ${LOG_FILE} --epochs 0

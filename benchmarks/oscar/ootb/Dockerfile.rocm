@@ -1,6 +1,0 @@
-FROM rocm/pytorch:rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0
-
-# install apex to enable fp16
-ENV PYTORCH_ROCM_ARCH gfx908;gfx90a
-RUN pip install ninja && \
-    pip install -v --install-option="--cpp_ext" --install-option="--cuda_ext" 'git+https://github.com/ROCmSoftwarePlatform/apex.git'

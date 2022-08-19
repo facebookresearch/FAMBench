@@ -12,7 +12,11 @@ We use a forked BEVT repo here for benchmark purpose. Follow these steps:
 
    For reproducibility, we provide Dockerfils for running BEVT benchmark on AMD/NVIDIA devices. Please see `Dockerfile.rocm` and `Dockerfile.cuda` for details. User can alternatively use our prebuilt images `mindest/rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0:bevt`/`mindest/cuda11.3_cudnn8_pytorch_1.11.0:bevt`.
 
-2. Run the docker container.
+2. Run the docker container, e.g.,
+
+    ```bash
+    docker run -it --ipc=host --privileged --device='/dev/kfd' --device='/dev/dri' --group-add video [-v LOCAL_PATH:CONTAINER_PATH] <IMAGE_NAME> bash
+    ```
 
 3. Prepare training data and pretrained checkpoints.
 

@@ -4,8 +4,14 @@
 
 1. Run container from Docker image.
 
-   - For CUDA: `nvcr.io/nvidia/pytorch:22.02-py3`
-   - For ROCm: `rocm/pytorch:rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0`
+    - For CUDA: `nvcr.io/nvidia/pytorch:22.02-py3`
+    - For ROCm: `rocm/pytorch:rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0`
+
+    Sample command:
+
+    ```bash
+    docker run -it --ipc=host --privileged --device='/dev/kfd' --device='/dev/dri' --group-add video [-v LOCAL_PATH:CONTAINER_PATH] <IMAGE_NAME> bash
+    ```
 
 2. Prepare the environment and data.
 
