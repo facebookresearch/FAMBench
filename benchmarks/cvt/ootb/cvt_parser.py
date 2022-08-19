@@ -10,7 +10,7 @@ class CvtLogParser:
         self.last_steps = last_steps
 
     def parse(self, path):
-        print(f"Parse {path}")
+        print(f"Parsing {path}")
         performance_regex = re.compile(
             ".*Speed (?P<performance>[0-9]*\.[0-9]*) samples/s.*"
         )
@@ -50,7 +50,6 @@ if __name__ == "__main__":
     parser = CvtLogParser(last_steps=args.steps)
     logfile = args.logpath
 
-    print(f"logfile : {logfile}")
     metric = parser.parse(logfile)
 
     labels = list(metric.keys())

@@ -10,7 +10,7 @@ class MoeLogParser():
         self.select_epoch = select_epoch
 
     def parse(self, path):
-        print(f"Parse {path}")
+        print(f"Parsing {path}")
         epoch_wps_regex = re.compile(
             ".*INFO \| train \| epoch (?P<epoch>[0-9]*).* \| wps (?P<wps>[0-9]*).*"
         )
@@ -35,8 +35,8 @@ class MoeLogParser():
                     global_batch_size = int(match["global_batch_size"])
 
         metrics = OrderedDict()
-        
-        metrics["global_batch_size"] = global_batch_size 
+
+        metrics["global_batch_size"] = global_batch_size
         if len(epoches) == len(wpss):
             if self.select_epoch < len(epoches):
                 metrics["performance"] = wpss[self.select_epoch]
@@ -45,7 +45,7 @@ class MoeLogParser():
         metrics["metrics"] = "tokens/sec"
         metrics["performance_step"] = self.select_epoch
         print(metrics)
-        
+
         return metrics
 
 
@@ -64,7 +64,6 @@ if __name__ == "__main__":
     parser = MoeLogParser(select_epoch=args.select_epoch)
     logfile = args.logpath
 
-    print(f"logfile : {logfile}")
     metric = parser.parse(logfile)
 
     labels = list(metric.keys())

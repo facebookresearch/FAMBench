@@ -18,5 +18,5 @@
 3. Run the benchmark.
 
     ```bash
-    bash run_moe_train.sh [NODES <1>] [GPUS <8>] [MAX_TOKENS <8192>]
+    bash run_moe_train.sh [NODES <1>] [GPUS <8>] [MAX_TOKENS <16384>]
     ```

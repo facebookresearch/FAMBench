@@ -22,23 +22,25 @@ We use a forked BEVT repo here for benchmark purpose. Follow these steps:
     bash prep_data.sh
     ```
 
-4. Run the command.
+4. Run the benchmark.
 
     Simply run
 
     ```bash
-    bash run_bevt_train.sh [NODES <1>] [GPUS <8>] [BATCH_SIZE <8>] [EPOCHS <1>]
+    bash run_bevt_train.sh [NODES <1>] [GPUS <8>] [BATCH_SIZE <8>] [EPOCHS <1>] [MAX_STEPS <1200>]
     ```
 
     And it will run the training and output average iter time (s/it) and throughput (samples/s).
 
-## Sample perf data for MI200 and A100
+    **Note:** The postprocessing script will skip data of the first 10 timestamps (200 steps) to exclude potential outliers. Therefore by default we will have data for steps 200-1200, which will be used in calculating average iter time.
+
+## Sample perf data for MI250X and A100
 
 For A100 we run `bash run_bevt_train.sh 1 a 8`. Global batch size `8a`.
 
-For MI200 we run `bash run_bevt_train.sh 1 b 4`. Global batch size `4b`.
+For MI250 we run `bash run_bevt_train.sh 1 b 4`. Global batch size `4b`.
 
-Sample perf data on a single node:
+Sample perf data on a single node (keeping mini-bsz of MI250X half as that of A100):
 
 | Device | # GPUs/GCDs | Mini-bsz | Global bsz | Avg iter time (s/it) | Throughput (samples/s) |
 | :----: | ----------: | -------: | ---------: | -------------------: | ---------------------: |
@@ -46,7 +48,7 @@ Sample perf data on a single node:
 |  A100  | 2  | 8 | 16 | 0.4515 | 35.44 |
 |  A100  | 4  | 8 | 32 | 0.5052 | 63.34 |
 |  A100  | 8  | 8 | 64 | 0.7186 | 89.06 |
-| MI200  | 2  | 4 | 8  | 0.4705 | 17.00 |
-| MI200  | 4  | 4 | 16 | 0.4939 | 32.40 |
-| MI200  | 8  | 4 | 32 | 0.5813 | 55.05 |
-| MI200  | 16 | 4 | 64 | 0.8583 | 74.57 |
+| MI250X | 2  | 4 | 8  | 0.4705 | 17.00 |
+| MI250X | 4  | 4 | 16 | 0.4939 | 32.40 |
+| MI250X | 8  | 4 | 32 | 0.5813 | 55.05 |
+| MI250X | 16 | 4 | 64 | 0.8583 | 74.57 |

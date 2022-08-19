@@ -65,4 +65,4 @@ BEVT_GLOBAL_BSZ=$[${NODES}*${NUM_GPUS}*${BS}]
 
 python tools/analysis/analyze_logs.py cal_train_time ${work_dir}/*.log.json | tee >(tail -2 | grep -o '[0-9.]\+' > ${work_dir}/SEC_PER_ITER)
 
-echo Throughput: `awk -v x=${BEVT_GLOBAL_BSZ} -v y=$(cat ${work_dir}/SEC_PER_ITER) 'BEGIN{printf "%.2f\n",x/y}'` samples/s
+echo Throughput: `awk -v x=${BEVT_GLOBAL_BSZ} -v y=$(cat ${work_dir}/SEC_PER_ITER) 'BEGIN{printf "%.4f\n it/s (%.2f\n samples/s)",1/y, x/y}'`
