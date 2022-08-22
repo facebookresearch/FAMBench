@@ -12,7 +12,7 @@ class OscarLogParser:
 
     def parse(self, path):
         print(f"Parsing {path}")
-        train_time_regex = re.compile(".*Train Time: (?P<train_time>[0-9]*\.[0-9]*).*")
+        train_time_regex = re.compile(".*Actual Train Time: (?P<train_time>[0-9]*\.[0-9]*).*")
         global_step_regex = re.compile(
             ".*Epoch: (?P<epoch>[0-9]*), global_step: (?P<global_step>[0-9]*).*"
         )

@@ -12,7 +12,7 @@ class MoeLogParser():
     def parse(self, path):
         print(f"Parsing {path}")
         epoch_wps_regex = re.compile(
-            ".*INFO \| train \| epoch (?P<epoch>[0-9]*).* \| wps (?P<wps>[0-9]*).*"
+            ".*INFO \| train \| epoch (?P<epoch>[0-9]*).* \| wps (?P<wps>([1-9]\.[0-9]*e[+-][0-9]*)|[0-9]*).*"
         )
         global_batch_size_regex = re.compile(
             ".*train_batch_size ............. (?P<global_batch_size>[0-9]*).*"
@@ -26,10 +26,8 @@ class MoeLogParser():
             for line in f:
                 match = epoch_wps_regex.match(line)
                 if match:
-                    epoch = match["epoch"]
-                    epoches.append(epoch)
-                    wps = float(match["wps"])
-                    wpss.append(wps)
+                    epoches.append(match["epoch"])
+                    wpss.append(float(match["wps"]))
                 match = global_batch_size_regex.match(line)
                 if match:
                     global_batch_size = int(match["global_batch_size"])
