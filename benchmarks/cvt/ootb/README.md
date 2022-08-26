@@ -37,3 +37,12 @@
     - Multi-node task: user has to run `bash run_cvt_train.sh <NODES> <GPUS> <BSZ> <RANK> <MASTER_ADDR>` on each node, or use `pdsh` to autorun distributed commands.
 
     Output log files are automatically parsed to get the overall throughput numbers.
+
+## Settings we use for benchmarking MI250X vs. A100
+
+We keep the global batch size for A100 and MI250X the same when running benchmarks and comparing.
+
+For `n`-node run, on each node:
+
+* A100: `bash run_cvt_train.sh <n> 8 256 <RANK> <MASTER_ADDR>`
+* MI250X: `bash run_cvt_train.sh <n> 16 128 <RANK> <MASTER_ADDR>`

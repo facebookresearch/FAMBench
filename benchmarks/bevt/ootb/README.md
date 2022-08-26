@@ -56,3 +56,18 @@ Sample perf data on a single node (keeping mini-bsz of MI250X half as that of A1
 | MI250X | 4  | 4 | 16 | 0.4939 | 32.40 |
 | MI250X | 8  | 4 | 32 | 0.5813 | 55.05 |
 | MI250X | 16 | 4 | 64 | 0.8583 | 74.57 |
+
+## Settings we use for benchmarking MI250X vs. A100
+
+We keep the global batch size for A100 and MI250X the same when running benchmarks and comparing.
+
+For cases with a node, say we use `a` gpus for A100, the running commands are like:
+
+* A100: `bash run_bevt_train.sh 1 <a> 8`
+* MI250X: `bash run_bevt_train.sh 1 <a*2> 4`
+
+
+For `n`-node run, on each node:
+
+* A100: `MASTER_ADDR=<master ip> NODE_RANK=<node rank> bash run_bevt_train.sh <n> 8 8`
+* MI250X: `MASTER_ADDR=<master ip> NODE_RANK=<node rank> bash run_bevt_train.sh <n> 16 4`

@@ -2,7 +2,7 @@ export HSA_ENABLE_SDMA=0
 
 NODES=${1:-1}
 GPUS=${2:-8}
-BS=${3:-128}
+BS=${3:-256}
 EPOCH=${4:-1}
 
 mkdir -p OSCAR_DATA OSCAR_OUTPUT
@@ -46,7 +46,7 @@ python -m torch.distributed.launch \
         --label_file ${DATA}/trainval_ans2label.pkl \
         --save_epoch 10 \
         --seed 88 \
-        --evaluate_during_trainin \
+        --evaluate_during_training \
         --num_train_epochs ${EPOCH} \
         --logging_steps 40000 \
         --drop_out 0.3 \

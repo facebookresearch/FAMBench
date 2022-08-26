@@ -24,7 +24,7 @@ unset WORLD_SIZE
 
 cd fairseq/examples/deepspeed/moe_e/
 
-# Shorten the training loop
+# Shorten the training loop (make sure you finish a complete epoch)
 max_update=$[80 / ${NODES}]
 sed -i "s/max-update 300000/max-update ${max_update}/g" run-distributed.sh
 sed -i "s/--validate-interval-updates 20/--log-interval 1 --disable-validation/g" run-distributed.sh
