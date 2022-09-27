@@ -81,7 +81,8 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
         if device:
             x = x.to(device)
             y_true = y_true.to(device)
-        y_pred = xlmr.extract_features(x)
+        #y_pred = xlmr.extract_features(x)
+        y_pred = xlmr(x)
         loss = F.cross_entropy(y_pred, y_true)
         loss.backward()
         optimizer.step()
