@@ -12,7 +12,7 @@ def sample_sequence_length(query_percentile = None, seq_len_dist=None, seq_len_m
     Given a percentile, gives the corresponding sequence length based on seq len distribution.
     If percentile is none, percentile is randomly generated.
 
-    Expects 
+    Expects
     query_percentile : float in range [0, 1]
     seq_len_dist : dict with float keys in range [0, 1] and int vals in range [1, positive inf]
     seq_len_max : int in range [1, positive inf]
@@ -53,7 +53,7 @@ def generate_inputs(batchsize, seq_length, vocab_size, is_half=False):
 def generate_outputs(batchsize, seq_length, output_embed_size):
     shape = (batchsize, seq_length, output_embed_size)
     y = torch.rand(shape)
-    return y 
+    return y
 
 def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=250000, get_y_true=True, is_half=False):
     """
@@ -64,5 +64,5 @@ def generate_ml_sample(batchsize=64, seq_length=64, vocab_size=250000, get_y_tru
     if(get_y_true):
         output_embed_size = 1024
         y = generate_outputs(batchsize, seq_length, output_embed_size)
-        
+
     return x, y

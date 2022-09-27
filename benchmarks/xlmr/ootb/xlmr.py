@@ -12,9 +12,9 @@ sys.path.append(fspath(p))
 from bmlogger import get_bmlogger
 
 """
-Main XLM-R Benchmark! 
+Main XLM-R Benchmark!
 
-See xlmr_parser.py for a full list of command line args. 
+See xlmr_parser.py for a full list of command line args.
 """
 
 def time_ms(use_gpu):
@@ -26,15 +26,20 @@ def time_ms(use_gpu):
     return time.time_ns() * 1e-6
 
 def get_model():
-    fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large')
+    #fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large')
 
     # TODO use torchscript? jit/script this model?
-    return fairseq_xlmr_large
+    import torchtext
+    xlmr_large = torchtext.models.XLMR_LARGE_ENCODER
+    model = xlmr_large.get_model()
+
+    #return fairseq_xlmr_large
+    return model
 
 def inference(xlmr, x_l, device=None, logger=None):
     """
     xlmr: xlmr model to infer on
-    x_l: data 
+    x_l: data
     device->torch.device: optional device (generally a gpu). If None, default to cpu.
     logger->BMLogger: optional logger. If no logger, does not log.
 
@@ -42,18 +47,19 @@ def inference(xlmr, x_l, device=None, logger=None):
     """
     if logger is None:
         logger = get_bmlogger() #No op logger
+    with torch.no_grad():
+        for i, x in enumerate(x_l):
+            logger.batch_start()
+            if device:
+                x = x.to(device)
+            #y_pred = xlmr.extract_features(x)
+            y_pred = xlmr(x)
 
-    for i, x in enumerate(x_l):
-        logger.batch_start()
-        if device:
-            x = x.to(device) 
-        y_pred = xlmr.extract_features(x) 
-
-        # Solves memory leak that causes memory usage to increase with more batches. 
-        # With del, gpu/cpu memory can be reused immediately. 
-        # Without, python GC takes multiple loops to release memory.
-        del y_pred 
-        logger.batch_stop(time_ms=time_ms(device is not None))
+            # Solves memory leak that causes memory usage to increase with more batches.
+            # With del, gpu/cpu memory can be reused immediately.
+            # Without, python GC takes multiple loops to release memory.
+            #del y_pred
+            logger.batch_stop(time_ms=time_ms(device is not None))
 
 def train(xlmr, x_l, y_true_l, device=None, logger=None):
     """
@@ -70,19 +76,19 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
 
     learning_rate = 0.01
     optimizer = torch.optim.SGD(xlmr.parameters(), lr=learning_rate)
-    for i, (x, y_true) in enumerate(zip(x_l, y_true_l)):   
+    for i, (x, y_true) in enumerate(zip(x_l, y_true_l)):
         logger.batch_start()
         if device:
             x = x.to(device)
             y_true = y_true.to(device)
         y_pred = xlmr.extract_features(x)
-        loss = F.cross_entropy(y_pred, y_true) 
+        loss = F.cross_entropy(y_pred, y_true)
         loss.backward()
         optimizer.step()
-        optimizer.zero_grad() 
-        
-        # Solves memory leak that causes memory usage to increase with more batches. 
-        # With del, gpu/cpu memory can be reused immediately. 
+        optimizer.zero_grad()
+
+        # Solves memory leak that causes memory usage to increase with more batches.
+        # With del, gpu/cpu memory can be reused immediately.
         # Without, python GC takes multiple loops to release memory.
         del y_pred
         del loss
@@ -91,7 +97,7 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
 def generate_dataset(num_batches, batch_size, vocab_size, inference_only, seqlen_dist=None, uniform_seqlen=None, seq_len_dist_max=256):
     """
     Generates a dataset depending on boolean flags
-    inference_only: bool. Whether to return non-empty Y in addition to X. 
+    inference_only: bool. Whether to return non-empty Y in addition to X.
     """
     def generate_single_sample():
         get_y_true_arg = not inference_only
@@ -148,13 +154,13 @@ def run():
         xlmr = xlmr.to(device)
     if device and args.half_model:
         xlmr.half()
-    
-    # Generate data! y is empty if inference_only. 
-    x_l_warmup, y_true_l_warmup = generate_dataset(args.warmup_batches, args.batch_size, 
-        args.vocab_size, args.inference_only, uniform_seqlen=args.sequence_length, 
+
+    # Generate data! y is empty if inference_only.
+    x_l_warmup, y_true_l_warmup = generate_dataset(args.warmup_batches, args.batch_size,
+        args.vocab_size, args.inference_only, uniform_seqlen=args.sequence_length,
         seqlen_dist=args.seqlen_dist, seq_len_dist_max=args.seqlen_dist_max)
-    x_l, y_true_l = generate_dataset(args.num_batches, args.batch_size, 
-        args.vocab_size, args.inference_only, uniform_seqlen=args.sequence_length, 
+    x_l, y_true_l = generate_dataset(args.num_batches, args.batch_size,
+        args.vocab_size, args.inference_only, uniform_seqlen=args.sequence_length,
         seqlen_dist=args.seqlen_dist, seq_len_dist_max=args.seqlen_dist_max)
 
     if args.use_tf32:
@@ -169,7 +175,7 @@ def run():
 
     # benchmark!
     bmlogger.run_start(time_ms=time_ms(args.use_gpu))
-    
+
     if args.inference_only:
         inference(xlmr, x_l, device=device, logger=bmlogger)
     else:
