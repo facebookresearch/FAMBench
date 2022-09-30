@@ -14,7 +14,7 @@ ipdb==0.13.9
 ipython==7.33.0
 ipython-genutils==0.2.0
 jedi==0.18.1
-joblib==1.1.0
+joblib==1.2.0
 librosa==0.9.1
 llvmlite==0.37.0
 markdown==3.2.1
