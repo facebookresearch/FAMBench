@@ -25,18 +25,19 @@ def time_ms(use_gpu):
         torch.cuda.synchronize()
     return time.time_ns() * 1e-6
 
-def get_model():
-    #fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large')
+def get_model(use_torchtext=False):
+    if use_torchtext:
+        import torchtext
+        xlmr_large = torchtext.models.XLMR_LARGE_ENCODER
+        model = xlmr_large.get_model()
+        return model
 
+    # else use fairseq
+    fairseq_xlmr_large = torch.hub.load('pytorch/fairseq:main', 'xlmr.large')
     # TODO use torchscript? jit/script this model?
-    import torchtext
-    xlmr_large = torchtext.models.XLMR_LARGE_ENCODER
-    model = xlmr_large.get_model()
+    return fairseq_xlmr_large
 
-    #return fairseq_xlmr_large
-    return model
-
-def inference(xlmr, x_l, device=None, logger=None):
+def inference(xlmr, x_l, device=None, logger=None, use_torchtext=False):
     """
     xlmr: xlmr model to infer on
     x_l: data
@@ -52,16 +53,18 @@ def inference(xlmr, x_l, device=None, logger=None):
             logger.batch_start()
             if device:
                 x = x.to(device)
-            #y_pred = xlmr.extract_features(x)
-            y_pred = xlmr(x)
+            if use_torchtext:
+                y_pred = xlmr(x)
+            else:
+                y_pred = xlmr.extract_features(x)
+                # Solves memory leak that causes memory usage to increase with more batches.
+                # With del, gpu/cpu memory can be reused immediately.
+                # Without, python GC takes multiple loops to release memory.
+                del y_pred
 
-            # Solves memory leak that causes memory usage to increase with more batches.
-            # With del, gpu/cpu memory can be reused immediately.
-            # Without, python GC takes multiple loops to release memory.
-            #del y_pred
             logger.batch_stop(time_ms=time_ms(device is not None))
 
-def train(xlmr, x_l, y_true_l, device=None, logger=None):
+def train(xlmr, x_l, y_true_l, device=None, logger=None, use_torchtext=False):
     """
     xlmr: xlmr model to train
     x_l: input data
@@ -82,7 +85,10 @@ def train(xlmr, x_l, y_true_l, device=None, logger=None):
             x = x.to(device)
             y_true = y_true.to(device)
         #y_pred = xlmr.extract_features(x)
-        y_pred = xlmr(x)
+        if use_torchtext:
+            y_pred = xlmr(x)
+        else:
+            y_pred = xlmr.extract_features(x)
         loss = F.cross_entropy(y_pred, y_true)
         loss.backward()
         optimizer.step()
@@ -146,7 +152,7 @@ def run():
         bmlogger.header("XLMR", "OOTB", mode, args.famconfig)
 
     # prep model and data
-    xlmr = get_model()
+    xlmr = get_model(args.use_torchtext)
     if args.inference_only:
         xlmr.eval()
 
@@ -170,17 +176,17 @@ def run():
 
     # warmup
     if args.inference_only:
-        inference(xlmr, x_l_warmup, device=device)
+        inference(xlmr, x_l_warmup, device=device, use_torchtext=args.use_torchtext)
     else:
-        train(xlmr, x_l_warmup, y_true_l_warmup, device=device)
+        train(xlmr, x_l_warmup, y_true_l_warmup, device=device, use_torchtext=args.use_torchtext)
 
     # benchmark!
     bmlogger.run_start(time_ms=time_ms(args.use_gpu))
 
     if args.inference_only:
-        inference(xlmr, x_l, device=device, logger=bmlogger)
+        inference(xlmr, x_l, device=device, logger=bmlogger, use_torchtext=args.use_torchtext)
     else:
-        train(xlmr, x_l, y_true_l, device=device, logger=bmlogger)
+        train(xlmr, x_l, y_true_l, device=device, logger=bmlogger, use_torchtext=args.use_torchtext)
 
     bmlogger.run_stop(0, 0, time_ms=time_ms(args.use_gpu))
     bmlogger.record_batch_info(num_batches=len(x_l), batch_size=len(x_l[0]))
