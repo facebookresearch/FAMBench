@@ -15,7 +15,7 @@ We use a forked BEVT repo here for benchmark purpose. Follow these steps:
 2. Run the docker container, e.g.,
 
     ```bash
-    docker run -it --ipc=host --privileged --device='/dev/kfd' --device='/dev/dri' --group-add video [-v LOCAL_PATH:CONTAINER_PATH] <IMAGE_NAME> bash
+    sudo docker run --gpus all -it --ipc=host --privileged --device='/dev/kfd' --device='/dev/dri' --group-add video [-v LOCAL_PATH:CONTAINER_PATH] <IMAGE_NAME> bash
     ```
 
 3. Prepare training data and pretrained checkpoints.
