@@ -15,8 +15,16 @@ LOG_FILE=${OUTPUT_DIR}/moe_${NODES}x${GPUS}x${MAX_TOKENS}.log
 export WORKSPACE=${OUTPUT_DIR}
 
 export NUM_GPUS=${GPUS}
-export EP_WORLD_SIZE=8
-export NUM_EXPERTS=8
+
+# Set EP_WORLD_SIZE and NUM_EXPERTS to min(8, NUM_GPUS)
+if [ $NUM_GPUS -gt 8 ]
+then
+    export EP_WORLD_SIZE=8
+    export NUM_EXPERTS=8
+else
+    export EP_WORLD_SIZE=${NUM_GPUS}
+    export NUM_EXPERTS=${NUM_GPUS}
+fi
 export NODE_COUNT=${NODES}
 export ARCH=transformer_ds_moe_vaswani_wmt_en_de_big
 export HSA_ENABLE_SDMA=0
