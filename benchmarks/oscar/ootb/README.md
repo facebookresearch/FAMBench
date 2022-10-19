@@ -28,14 +28,14 @@
 3. Run the benchmark.
 
     ```bash
-    bash run_oscar_train.sh [NODES <1>] [GPUS <8>] [BATCH_SIZE <256>] [EPOCHS <1>]
+    bash run_oscar_train.sh [GPUS <8>] [BATCH_SIZE <256>] [EPOCHS <1>]
     ```
 
 ## Settings we use for benchmarking MI250X vs. A100
 
 We keep the global batch size for A100 and MI250X the same when running benchmarks and comparing.
 
-For `n`-node run, on each node:
+Run the following command on each node:
 
-* A100: `MASTER_ADDR=<master ip> NODE_RANK=<node rank> bash run_oscar_train.sh <n> 8 256`
-* MI250X: `MASTER_ADDR=<master ip> NODE_RANK=<node rank> bash run_oscar_train.sh <n> 16 128`
+* A100: `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_oscar_train.sh 8 256`
+* MI250X: `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_oscar_train.sh 16 128`

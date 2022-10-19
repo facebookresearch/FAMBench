@@ -40,9 +40,9 @@ We use a forked BEVT repo here for benchmark purpose. Follow these steps:
 
 ## Sample perf data for MI250X and A100
 
-For A100 we run `bash run_bevt_train.sh 1 a 8`. Global batch size `8a`.
+For A100, single node, we run `bash run_bevt_train.sh a 8`. Global batch size `8a`.
 
-For MI250X we run `bash run_bevt_train.sh 1 b 4`. Global batch size `4b`.
+For MI250X, single node, we run `bash run_bevt_train.sh b 4`. Global batch size `4b`.
 
 Sample perf data on a single node (keeping mini-bsz of MI250X half as that of A100):
 
@@ -63,11 +63,11 @@ We keep the global batch size for A100 and MI250X the same when running benchmar
 
 For cases with a node, say we use `a` gpus for A100, the running commands are like:
 
-* A100: `bash run_bevt_train.sh 1 <a> 8`
-* MI250X: `bash run_bevt_train.sh 1 <a*2> 4`
+* A100: `bash run_bevt_train.sh <a> 8`
+* MI250X: `bash run_bevt_train.sh <a*2> 4`
 
 
-For `n`-node run, on each node:
+Run the following command on each node:
 
-* A100: `MASTER_ADDR=<master ip> NODE_RANK=<node rank> bash run_bevt_train.sh <n> 8 8`
-* MI250X: `MASTER_ADDR=<master ip> NODE_RANK=<node rank> bash run_bevt_train.sh <n> 16 4`
+* A100: `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_bevt_train.sh 8 8`
+* MI250X: `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_bevt_train.sh 16 4`
