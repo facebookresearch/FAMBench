@@ -1,3 +1,5 @@
+#!?usr/bin/env bash
+
 set -ex
 
 # Install dependencies
@@ -14,4 +16,5 @@ unzip best.zip
 rm best.zip
 # Training data (path OSCAR_DATA/dataset/vqa)
 # Download via azcopy
-azcopy copy https://biglmdiag.blob.core.windows.net/vinvl/datasets/vqa dataset --recursive
+wget -O azcopy_v10.tar.gz https://aka.ms/downloadazcopy-v10-linux && tar -xf azcopy_v10.tar.gz --strip-components=1
+./azcopy copy https://biglmdiag.blob.core.windows.net/vinvl/datasets/vqa dataset --recursive

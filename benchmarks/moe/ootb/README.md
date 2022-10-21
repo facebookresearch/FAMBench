@@ -24,7 +24,7 @@
 3. Run the benchmark.
 
     ```bash
-    bash run_moe_train.sh [NODES <1>] [GPUS <8>] [MAX_TOKENS <16384>]
+    bash run_moe_train.sh [GPUS <8>] [MAX_TOKENS <16384>]
     ```
 
     For multi-node case, user will have to trigger the command on all the nodes.
@@ -33,7 +33,7 @@
 
 We keep the global batch size for A100 and MI250X the same when running benchmarks and comparing.
 
-For `n`-node run, on each node:
+Run the following command on each node:
 
-* A100: `MASTER_ADDR=<master ip> NODE_RANK=<node rank> bash run_moe_train.sh <n> 8 16384`
-* MI250X: `MASTER_ADDR=<master ip> NODE_RANK=<node rank> bash run_moe_train.sh <n> 16 8192`
+* A100: `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_moe_train.sh 8 16384`
+* MI250X: `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_moe_train.sh 16 8192`

@@ -1,21 +1,23 @@
+#!/usr/bin/env bash
+
 export HSA_ENABLE_SDMA=0
 
-NODES=${1:-1}
-GPUS=${2:-8}
-BS=${3:-256}
-EPOCH=${4:-1}
+GPUS=${1:-8}
+BS=${2:-256}
+EPOCH=${3:-1}
 
 mkdir -p OSCAR_DATA OSCAR_OUTPUT
 OUTPUT_DIR=$(realpath OSCAR_OUTPUT)
-LOG_FILE=${OUTPUT_DIR}/oscar_${NODES}x${GPUS}.bsz${BS}.log
 DATA_DIR=$(realpath OSCAR_DATA)
 DATA=${DATA_DIR}/dataset/vqa
 MODEL=${DATA_DIR}/best/best
 
-RANK=${RANK:=0}
-NODE_COUNT=${NODE_COUNT:=1}
-MASTER_ADDR=${MASTER_ADDR:=127.0.0.1}
-MASTER_PORT=${MASTER_PORT:=9000}
+export NODE_COUNT=${NODE_COUNT:=1}
+export RANK=${RANK:=0}
+export MASTER_ADDR=${MASTER_ADDR:=127.0.0.1}
+export MASTER_PORT=${MASTER_PORT:=9000}
+
+LOG_FILE=${OUTPUT_DIR}/oscar_${NODE_COUNT}x${GPUS}.bsz${BS}.log
 
 cd Oscar
 export PYTHONPATH=$(pwd):/${PYTHONPATH}

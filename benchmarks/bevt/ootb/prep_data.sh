@@ -1,3 +1,5 @@
+#!?usr/bin/env bash
+
 mkdir -p BEVT_DATA
 cd BEVT_DATA
 

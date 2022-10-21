@@ -1,3 +1,5 @@
+#!?usr/bin/env bash
+
 # Install fairseq and dependencies
 cd fairseq
 sed 's#.*torchaudio>=.*",##g' -i setup.py

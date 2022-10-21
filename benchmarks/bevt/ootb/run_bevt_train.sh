@@ -1,25 +1,24 @@
-#!/bin/bash
+#!/usr/bin/bash env
 # sudo sysctl kernel.numa_balancing=0
 
-NODES=${1:-1}
-NUM_GPUS=${2:-8}
-BS=${3:-8}
-EP=${4:-1}
+NUM_GPUS=${1:-8}
+BS=${2:-8}
+EP=${3:-1}
 
-export NODE_COUNT=${NODES}
-export BEVT_MAX_STEPS=${5:-1200}
+export BEVT_MAX_STEPS=${4:-1200}
 export PYTHONPATH=$(pwd):${PYTHONPATH}
 export OMP_NUM_THREADS=1
 
-NODE_RANK=${NODE_RANK:-0}
-MASTER_ADDR=${MASTER_ADDR:-127.0.0.1}
-MASTER_PORT=${MASTER_PORT:-12345}
+export NODE_COUNT=${NODE_COUNT:=1}
+export NODE_RANK=${NODE_RANK:=0}
+export MASTER_ADDR=${MASTER_ADDR:=127.0.0.1}
+export MASTER_PORT=${MASTER_PORT:=9000}
 
 cd BEVT/
 DATAROOT=../BEVT_DATA
 pretrained_ckpt=${DATAROOT}/swin_base_image_stream_pretrain.pth
 tokenizer_path=${DATAROOT}/dall_e_tokenizer_weight
-work_dir=../BEVT_OUTPUT/$(date +%Y%m%d.%H%M%S).${NODES}x${NUM_GPUS}x${BS}
+work_dir=../BEVT_OUTPUT/$(date +%Y%m%d.%H%M%S).${NODE_COUNT}x${NUM_GPUS}x${BS}
 
 prefix=${DATAROOT}/kinetics/kinetics400_256
 image_data_root=${DATAROOT}/ILSVRC2012/train
@@ -61,7 +60,7 @@ if [ -f ${work_dir}/latest.pth ]; then rm ${work_dir}/*.pth; fi
             --seed 0 --deterministic
 )
 
-BEVT_GLOBAL_BSZ=$[${NODES}*${NUM_GPUS}*${BS}]
+BEVT_GLOBAL_BSZ=$[${NODE_COUNT}*${NUM_GPUS}*${BS}]
 
 python tools/analysis/analyze_logs.py cal_train_time ${work_dir}/*.log.json | tee >(tail -2 | grep -o '[0-9.]\+' > ${work_dir}/SEC_PER_ITER)
 

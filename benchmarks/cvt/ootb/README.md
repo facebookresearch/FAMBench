@@ -26,15 +26,15 @@
 3. Run the benchmark.
 
     ```bash
-    bash run_cvt_train.sh [NODES <1>] [GPUS <8>] [BSZ <256>] [RANK <0>] [MASTER_ADDR <127.0.0.1>]
+    bash run_cvt_train.sh [GPUS <8>] [BSZ <256>]
     ```
 
     Sample command:
 
     - Training on a single node:
-      - On A100: `bash run_cvt_train.sh 1 8`
-      - On MI250X: `bash run_cvt_train.sh 1 16 128`
-    - Multi-node task: user has to run `bash run_cvt_train.sh <NODES> <GPUS> <BSZ> <RANK> <MASTER_ADDR>` on each node, or use `pdsh` to autorun distributed commands.
+      - On A100: `bash run_cvt_train.sh 8 256`
+      - On MI250X: `bash run_cvt_train.sh 16 128`
+    - Multi-node task: user has to run `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_cvt_train.sh <GPUS> <BSZ>` on each node, or use `pdsh` to autorun distributed commands.
 
     Output log files are automatically parsed to get the overall throughput numbers.
 
@@ -42,7 +42,7 @@
 
 We keep the global batch size for A100 and MI250X the same when running benchmarks and comparing.
 
-For `n`-node run, on each node:
+Run the following command on each node:
 
-* A100: `bash run_cvt_train.sh <n> 8 256 <RANK> <MASTER_ADDR>`
-* MI250X: `bash run_cvt_train.sh <n> 16 128 <RANK> <MASTER_ADDR>`
+* A100: `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_cvt_train.sh 8 256`
+* MI250X: `MASTER_ADDR=<master ip> NODE_COUNT=<node count> RANK=<node rank> bash run_cvt_train.sh 16 128`
