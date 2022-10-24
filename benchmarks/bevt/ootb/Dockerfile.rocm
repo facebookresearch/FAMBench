@@ -1,7 +1,7 @@
 # Prebuilt image: mindest/rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0:bevt
 FROM rocm/pytorch:rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0
 
-RUN pip install timm DALL-E scipy einops decord
+RUN pip install DALL-E timm scipy einops decord
 
 # Install apex. Cherry-picking a fix from nvidia/apex
 WORKDIR /installed
