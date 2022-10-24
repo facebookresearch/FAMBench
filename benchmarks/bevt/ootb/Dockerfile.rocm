@@ -12,7 +12,6 @@ RUN git clone https://github.com/ROCmSoftwarePlatform/apex && \
     git config user.email user@example.com && \
     git config user.name user && \
     git fetch upstream pull/1282/head:tmp_branch && \
-    git cherry-pick 01802f623c9b54199566871b49f94b2d07c3f047 && \
     pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./ && \
     cd ..  && rm apex -r
 
@@ -23,7 +22,6 @@ RUN git clone https://github.com/open-mmlab/mmcv && \
     git config user.email user@example.com && \
     git config user.name user && \
     git fetch origin pull/1918/head:tmp_branch && \
-    git cherry-pick --strategy=recursive -X theirs 1d510a8c138a02112eea7d8647b1d8c224e9b525 9378fd9b0484539072685a5a43eae5099f542f98 && \
     MMCV_WITH_OPS=1 pip install -e .
 
 WORKDIR /workspace
