@@ -1,7 +1,7 @@
 # Prebuilt image: mindest/rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0:bevt
 FROM rocm/pytorch:rocm5.2_ubuntu20.04_py3.7_pytorch_1.11.0
 
-RUN pip install DALL-E timm scipy einops decord
+RUN pip install timm DALL-E scipy einops decord
 
 # Install apex. Cherry-picking a fix from nvidia/apex
 WORKDIR /installed
@@ -11,7 +11,6 @@ RUN git clone https://github.com/ROCmSoftwarePlatform/apex && \
     git remote add upstream https://github.com/nvidia/apex && \
     git config user.email user@example.com && \
     git config user.name user && \
-    git fetch upstream pull/1282/head:tmp_branch && \
     pip install -v --disable-pip-version-check --no-cache-dir --global-option="--cpp_ext" --global-option="--cuda_ext" ./ && \
     cd ..  && rm apex -r
 
@@ -21,7 +20,6 @@ RUN git clone https://github.com/open-mmlab/mmcv && \
     pip install -r requirements/optional.txt && \
     git config user.email user@example.com && \
     git config user.name user && \
-    git fetch origin pull/1918/head:tmp_branch && \
     MMCV_WITH_OPS=1 pip install -e .
 
 WORKDIR /workspace
