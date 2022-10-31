@@ -15,9 +15,9 @@ import pytorch_emb as kemb
 import pytorch_linear as klinear
 
 # FB5 Logger
-p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogging"
 sys.path.append(fspath(p))
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 import loggerconstants
 
 if __name__ == "__main__":
@@ -58,7 +58,7 @@ if __name__ == "__main__":
 
     #fb5 logging header
     if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
+        fb5logger = get_bmlogger(args.fb5logger)
 
     if args.kernel == 'emb':
         print("with emb dataset ", args.dataset)

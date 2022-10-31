@@ -44,9 +44,9 @@ from mlperf import logging
 
 # FB5 Logger
 import pathlib
-p = pathlib.Path(__file__).parent.resolve() / "../../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../../bmlogging"
 sys.path.append(os.fspath(p))
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 import loggerconstants
 
 
@@ -210,7 +210,7 @@ def main():
         logging.log_start(logging.constants.INIT_START)
 
     if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
+        fb5logger = get_bmlogger(args.fb5logger)
         fb5logger.header("RNN-T", "OOTB", "train", args.fb5config, score_metric=loggerconstants.EXPS)
 
     #assert(torch.cuda.is_available())
