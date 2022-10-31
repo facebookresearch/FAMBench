@@ -13,10 +13,10 @@ import comms_utils
 from comms import main as comms_main
 
 # FB5 Logger
-p = pathlib.Path(__file__).parent.resolve() / "../../../fb5logging"
+p = pathlib.Path(__file__).parent.resolve() / "../../../bmlogging"
 sys.path.append(fspath(p))
 import loggerconstants
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 
 
 def get_local_rank():
@@ -82,9 +82,9 @@ def main():
         --mm-dim {mm_dim}
         --backend {args.backend}
     """
-    sys.argv = cmd.replace("\n", " ").replace("  ", "").split()
+    sys.argv = cmd.split()
 
-    fb5logger = FB5Logger(args.fb5logger)
+    fb5logger = get_bmlogger(args.fb5logger)
     fb5logger.header(
         "DLRM",
         "UBENCH",
@@ -102,7 +102,7 @@ def main():
         comms_main()
 
     if mpi_env_params["global_rank"] == 0:
-        print(comms_stdout.getvalue())        
+        print(comms_stdout.getvalue())
         output = comms_stdout.getvalue().split("\n")[-3:]
         output = [" ".join(line.split()).split() for line in output]
         output[0].pop(2)

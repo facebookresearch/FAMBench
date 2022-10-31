@@ -25,9 +25,9 @@ MLPERF_CONF = Path(os.path.dirname(os.path.realpath(__file__))) / "../../mlperf.
 MLPERF_CONF = MLPERF_CONF.resolve()
 
 # FB5 Logger
-p = Path(__file__).parent.resolve() / "../../../../fb5logging"
+p = Path(__file__).parent.resolve() / "../../../../bmlogging"
 sys.path.append(os.fspath(p))
-from fb5logger import FB5Logger
+from bmlogger import get_bmlogger
 import loggerconstants
 
 
@@ -62,7 +62,7 @@ def main():
     args = get_args()
 
     if args.fb5logger is not None:
-        fb5logger = FB5Logger(args.fb5logger)
+        fb5logger = get_bmlogger(args.fb5logger)
         fb5logger.header("RNN-T", "OOTB", "infer", args.fb5config, score_metric=loggerconstants.EXPS)
 
     if args.backend == "pytorch":

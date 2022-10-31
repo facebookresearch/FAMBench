@@ -12,11 +12,11 @@
 ./run_dlrm_ubench_train_embeddingbag.sh -l results -c "[(2,2,2,2),(2,2,2,2),(2,2,2,2),(2,2,2,2),(2,2,2,2)]" # Config not real
 
 # XLMR OOTB
-./run_xlmr_ootb.sh 
+./run_xlmr_ootb.sh
 
 # CVT Convolutions UBench
 ./run_cvt_ubench_train_convs.sh -l result # The configurations (input shape, kernel size, etc.) benchmarked are taken from the CvT paper.
 
 # view options: [raw_view -> pure json, intermediate_view -> nice table]
 # intermediate view recommended for filling out table
-python ../fb5logging/result_summarizer.py -f results -v intermediate_view
+python ../bmlogging/result_summarizer.py -f results -v intermediate_view

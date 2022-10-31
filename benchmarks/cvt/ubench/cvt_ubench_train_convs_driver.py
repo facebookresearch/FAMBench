@@ -27,7 +27,7 @@ from typing import Callable, List, Optional, Tuple
 
 import loggerconstants
 
-# FAMBench Logger
+# Logger
 from bmlogger import get_bmlogger
 
 if __name__ == "__main__":
