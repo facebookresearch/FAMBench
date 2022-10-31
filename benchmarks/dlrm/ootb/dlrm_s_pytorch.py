@@ -1908,7 +1908,7 @@ def run():
                 for k, w in enumerate(dlrm.v_W_l):
                     dlrm.v_W_l[k] = w.cuda()
     else:
-        # Handing Multi-gpu mode
+        # Handling Multi-gpu mode
         dlrm.bot_l = dlrm.bot_l.to(device)
         dlrm.top_l = dlrm.top_l.to(device)
         dlrm.prepare_parallel_model(ndevices)
