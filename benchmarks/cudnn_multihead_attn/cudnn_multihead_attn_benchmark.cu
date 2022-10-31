@@ -70,8 +70,6 @@ DEFINE_string(ref_db, "./multihead_attn_ref.db", "Specifies the full path to the
     }                                       \
   } while (0)
 
-#define AT_CUDNN_CHECK checkCudnnError
-
 cudnnStatus_t status;
 cudnnHandle_t cudnnHandle;
 
@@ -83,7 +81,7 @@ struct RefData {
 };
 
 template<typename T>
-RefData<T> get_test_data_from_sqlite(std::string db_name, bool debug_mode) {
+RefData<T> get_ref_data_from_sqlite(std::string db_name, bool debug_mode) {
 
 	RefData<T> cfg;
 
@@ -107,7 +105,7 @@ RefData<T> get_test_data_from_sqlite(std::string db_name, bool debug_mode) {
 			// Load tensor.
 			if (debug_mode)
 				std::cout<<"Loading tensor "<<key<<"\n";
-            cfg.vecs[key] = std::vector<T>();
+			cfg.vecs[key] = std::vector<T>();
 			if (cfg.args["double_precision_ref_data"] == 1.0) {
 				double * blob = (double*)sqlite3_column_blob(stmt, 2);
 				int count = sqlite3_column_bytes(stmt, 2) / sizeof(double);
@@ -167,7 +165,7 @@ int run() {
 			<< "Run python cudnn_multihead_attn/multihead_attn_make_ref.py to create a reference db file.\n\n";
 		return 0;
 	}
-	RefData cfg = get_test_data_from_sqlite<T>(db_name.string(), debug_mode);
+	RefData cfg = get_ref_data_from_sqlite<T>(db_name.string(), debug_mode);
 
 	int batch_size 		=  cfg.args["batch_size"];
 	int emb_dim 		=  cfg.args["emb_dim"];
@@ -546,7 +544,7 @@ int run() {
 		auto pytVec = cfg.vecs[name];
 		auto size = sizeof(T) * pytVec.size();
 		auto cudnnVec = pytVec;
-		checkCudaErrors(cudaMemcpy(cudnnVec.data(), devPtr, size, cudaMemcpyDeviceToHost));		
+		checkCudaErrors(cudaMemcpy(cudnnVec.data(), devPtr, size, cudaMemcpyDeviceToHost));
 		if (debug_mode || FLAGS_print_accuracy_stats)
 			std::cout << "\nTensor " << name << ":\n\n";		
 		
@@ -601,7 +599,7 @@ int run() {
 			auto pytVec = cfg.vecs[name];
 			auto size = sizeof(T) * pytVec.size();
 			auto cudnnVec = pytVec;		
-			
+			checkCudaErrors(cudaMemcpy(cudnnVec.data(), devPtr, size, cudaMemcpyDeviceToHost));
 			std::cout << "\nTensor " << name << ":\n\n";		
 		
 			std::string qkvo_idx_err_str = ""; 
@@ -639,7 +637,7 @@ int run() {
 		1000.0f / FLAGS_iterations;
     printf("\nIteration time: %lf ms\n", dur_time);
 	printf(
-		"TF/s: %lf\n",
+		"TeraFLOPS/s: %lf\n",
 		2.0 * batch_size * 
 		cfg.args["params_count"]
 		/dur_time / 1000000000.0f);	

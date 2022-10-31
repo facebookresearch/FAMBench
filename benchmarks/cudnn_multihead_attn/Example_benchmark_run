@@ -1,0 +1,29 @@
+$ nvcc -o mha -I/usr/include -L/usr/lib/x86_64-linux-gnu -l:libcudnn.so.8.6.0 -l:libsqlite3.so.0 -l:libgflags.so -lpthread -ldl --std=c++17 cudnn_multihead_attn_benchmark.cu
+$ python multihead_attn_make_ref.py --batch-size=16 --double-precision-ref-data
+
+Generating multi-head attention reference data. (Model spec. and tensors; sample q, k, v, o activations; and gradients.)
+Number of Trainable Parameters: 4194304
+Example q, k, v values: [4782.238 2746.413 3902.571 3316.403 5973.985 3383.747 3635.884 8743.599
+ 9379.425 6956.413]
+Saving reference to file: /home/ubuntu/repos/FAMBench/benchmarks/cudnn_multihead_attn/multihead_attn_ref.db.
+
+Done.
+
+$ ./mha --iterations=100 --double_precision=true --training=true
+
+Reading PyTorch reference data from ./multihead_attn_ref.db
+emb_dim=1024
+num_heads=16
+seq_len=64
+batch_size=16
+double_precision_ref_data=1
+qkv_max_sig_figs=7
+qkv_highest_val=10000
+qkv_lowest_val=0
+disable_bias=1
+dropout=0
+use_bias=0
+params_count=4.1943e+06
+
+Iteration time: 3.535580 ms
+TeraFLOPS/s: 0.037962

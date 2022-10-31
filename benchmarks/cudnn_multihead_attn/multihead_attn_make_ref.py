@@ -5,7 +5,7 @@
 
 # This script generates reference data that is used to benchmark
 # CuDNN's Multi-head Attention training and inference implementations.
-# The reference data is saved to the file "multihead_attn_ref_data.db", which is
+# The reference data is saved to the file "multihead_attn_ref.db", which is
 # read by cudnn_multihead_attn_benchmark.cu.
 
 import argparse
@@ -251,6 +251,6 @@ if __name__ == "__main__":
     selfcoded_net.v_p.weight.grad.data = selfcoded_net.v_p.weight.grad.data.transpose(0, 1)
     selfcoded_net.o_p.weight.grad.data = selfcoded_net.o_p.weight.grad.data.transpose(0, 1)    
 
-    # save db info
+    # Save reference data to db.
     save_to_sqlite_db(args, selfcoded_net, q, k, v, o_selfcoded)
     print("\nDone.\n")
