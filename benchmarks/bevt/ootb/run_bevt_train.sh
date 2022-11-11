@@ -10,7 +10,7 @@ export PYTHONPATH=$(pwd):${PYTHONPATH}
 export OMP_NUM_THREADS=1
 
 export NODE_COUNT=${NODE_COUNT:=1}
-export NODE_RANK=${NODE_RANK:=0}
+export RANK=${RANK:=0}
 export MASTER_ADDR=${MASTER_ADDR:=127.0.0.1}
 export MASTER_PORT=${MASTER_PORT:=9000}
 
@@ -42,7 +42,7 @@ specified_configs="tokenizer_path=${tokenizer_path} model.cls_head.vae_weight_pa
                    data.train.1.times=${repeat_times} data.train.1.dataset.ann_file=${image_ann_file_train}
                    data.train.1.dataset.data_prefix=${image_data_root} total_epochs=${EP}"
 
-echo -e "rank: ${NODE_RANK}\nnode count: ${NODE_COUNT}"
+echo -e "rank: ${RANK}\nnode count: ${NODE_COUNT}"
 echo -e "master addr: ${MASTER_ADDR}\nmaster port: ${MASTER_PORT}"
 
 if [ -f ${work_dir}/latest.pth ]; then rm ${work_dir}/*.pth; fi
@@ -50,7 +50,7 @@ if [ -f ${work_dir}/latest.pth ]; then rm ${work_dir}/*.pth; fi
 (
     set -x
     python -m torch.distributed.launch --nnodes ${NODE_COUNT} \
-        --node_rank ${NODE_RANK} \
+        --node_rank ${RANK} \
         --master_addr ${MASTER_ADDR} \
         --master_port ${MASTER_PORT} \
         --nproc_per_node ${NUM_GPUS} \
