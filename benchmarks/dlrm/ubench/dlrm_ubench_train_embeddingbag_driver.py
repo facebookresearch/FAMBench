@@ -108,7 +108,6 @@ def run_emb(args, run_dataset):
         L,
         E,
         alpha=args.alpha,
-        weights_precision=args.weights_precision,
         weighted=args.weighted,
     )
     if isIntNTableBatched:
