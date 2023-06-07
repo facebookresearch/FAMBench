@@ -373,6 +373,7 @@ def main():
             num_replicas=world_size,
             rank=args.local_rank,
             num_workers=args.num_workers,
+            prefetch_factor=None,
             device_type=args.device)
 
         val_loader = AudioDataLoader(
@@ -386,6 +387,7 @@ def main():
             num_replicas=world_size,
             rank=args.local_rank,
             num_workers=args.num_workers,
+            prefetch_factor=None,
             device_type=args.device)
 
     train_feat_proc = train_augmentations
