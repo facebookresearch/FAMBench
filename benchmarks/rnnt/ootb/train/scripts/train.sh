@@ -88,7 +88,7 @@ ARGS+=" --grad_accumulation_steps=$GRAD_ACCUMULATION_STEPS "
 ARGS+=" --device=$DEVICE"
 ARGS+=" --beta1=$BETA1"
 ARGS+=" --beta2=$BETA2"
-ARGS+=" --num-workers=${NUM_WORKERS}"
+ARGS+=" --num-workers=$NUM_WORKERS"
 
 [ -n "$FB5LOGGER" ] &&               ARGS+=" --fb5logger=$FB5LOGGER"
 [ -n "$FB5CONFIG" ] &&               ARGS+=" --fb5config=$FB5CONFIG"
