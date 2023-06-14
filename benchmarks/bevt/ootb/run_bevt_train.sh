@@ -49,7 +49,7 @@ if [ -f ${work_dir}/latest.pth ]; then rm ${work_dir}/*.pth; fi
 
 (
     set -x
-    python -m torch.distributed.launch --nnodes ${NODE_COUNT} \
+    torchrun --nnodes ${NODE_COUNT} \
         --node_rank ${RANK} \
         --master_addr ${MASTER_ADDR} \
         --master_port ${MASTER_PORT} \
