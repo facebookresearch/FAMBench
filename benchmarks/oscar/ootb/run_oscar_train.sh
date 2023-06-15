@@ -22,7 +22,7 @@ LOG_FILE=${OUTPUT_DIR}/oscar_${NODE_COUNT}x${GPUS}.bsz${BS}.log
 cd Oscar
 export PYTHONPATH=$(pwd):/${PYTHONPATH}
 set -ex
-python -m torch.distributed.launch \
+torchrun \
     --nnodes ${NODE_COUNT} \
     --node_rank ${RANK} \
     --master_addr ${MASTER_ADDR} \
