@@ -111,7 +111,8 @@ ARGS+=" --num-workers=$NUM_WORKERS"
 [ -n "$WEIGHTS_INIT_SCALE" ] &&      ARGS+=" --weights_init_scale=$WEIGHTS_INIT_SCALE"
 [ -n "$MAX_SYMBOL_PER_SAMPLE" ] &&  ARGS+=" --max_symbol_per_sample=$MAX_SYMBOL_PER_SAMPLE"
 
-[ $NUM_GPUS -gt 1 ] &&    DISTRIBUTED=${DISTRIBUTED:-"-m torch.distributed.launch --nproc_per_node=$NUM_GPUS"}
+[ $NUM_GPUS -gt 1 ] &&    DISTRIBUTED=${DISTRIBUTED:-"--nproc_per_node=$NUM_GPUS"}
+
 script_dir=`dirname "${BASH_SOURCE[0]}"`
 set -x
-python ${DISTRIBUTED} "$script_dir/../train.py" ${ARGS}
+torchrun ${DISTRIBUTED} "$script_dir/../train.py" ${ARGS}
