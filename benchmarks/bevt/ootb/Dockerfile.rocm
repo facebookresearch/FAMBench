@@ -15,7 +15,7 @@ RUN git clone https://github.com/ROCmSoftwarePlatform/apex && \
     cd ..  && rm apex -r
 
 # Install mmcv from source. Cherry-picking a fix.
-RUN git clone https://github.com/open-mmlab/mmcv && \
+RUN git clone -b bevt_branch https://github.com/zstreet87/mmcv && \
     cd mmcv && \
     pip install -r requirements/optional.txt && \
     git config user.email user@example.com && \
