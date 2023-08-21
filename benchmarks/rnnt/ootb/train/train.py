@@ -73,6 +73,7 @@ def parse_args():
     training.add_argument('--target', default=0.058, type=float, help='Target WER accuracy')
     training.add_argument('--weights_init_scale', default=0.5, type=float, help='If set, overwrites value in config.')
     training.add_argument('--hidden_hidden_bias_scale', type=float, help='If set, overwrites value in config.')
+    training.add_argument('--prefetch_factor', default=None, type=int, help='Prefetch Factor for Audio Data Loader')
 
     optim = parser.add_argument_group('optimization setup')
     #optim.add_argument('--sample-rate', default=16000, type=int, help='Sample rate')
@@ -373,6 +374,7 @@ def main():
             num_replicas=world_size,
             rank=args.local_rank,
             num_workers=args.num_workers,
+            prefetch_factor=args.prefetch_factor,
             device_type=args.device)
 
         val_loader = AudioDataLoader(
@@ -386,6 +388,7 @@ def main():
             num_replicas=world_size,
             rank=args.local_rank,
             num_workers=args.num_workers,
+            prefetch_factor=args.prefetch_factor,
             device_type=args.device)
 
     train_feat_proc = train_augmentations
