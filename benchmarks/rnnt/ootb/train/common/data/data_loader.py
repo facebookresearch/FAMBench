@@ -25,8 +25,8 @@ from common.data.dataset import AudioDataset
 #TODO This load fails, but we don't need it anyways, only a small part of this file is used anymore(AudioDataLoader).  We should move it.
 #from data.SpecAugment import sparse_image_warp_zcaceres
 
-windows = {'hamming': scipy.signal.hamming, 'hann': scipy.signal.hann, 'blackman': scipy.signal.blackman,
-           'bartlett': scipy.signal.bartlett}
+windows = {'hamming': scipy.signal.windows.hamming, 'hann': scipy.signal.windows.hann, 'blackman': scipy.signal.windows.blackman,
+           'bartlett': scipy.signal.windows.bartlett}
 
 def load_audio(path):
     sound, _ = torchaudio.load(path)
