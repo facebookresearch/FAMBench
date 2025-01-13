@@ -7,7 +7,7 @@ Speech recognition accepts raw audio samples and produces a corresponding text t
 ### From Docker
 1. Clone the repository
 ```
-git clone https://github.com/mlcommon/training.git
+git clone https://github.com/mlcommons/training.git
 ```
 2. Install CUDA and Docker
 ```
