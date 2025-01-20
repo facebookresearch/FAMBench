@@ -115,7 +115,8 @@ def run_emb(args, run_dataset):
     warmup_requests, requests = requests[:args.warmups], requests[args.warmups:]
 
     #warmups
-    for (indices, offsets, weights) in warmup_requests:
+    for request in warmup_requests:
+        (indices, offsets, weights) = request.unpack_3()
         emb.forward(indices, offsets, weights)
 
     # forward
