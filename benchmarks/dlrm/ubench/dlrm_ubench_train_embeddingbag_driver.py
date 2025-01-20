@@ -111,7 +111,12 @@ def run_emb(args, run_dataset):
         weighted=args.weighted,
     )
     if isIntNTableBatched:
-        requests = [(a.int(), b.int(), c if c else None) for (a, b, c) in requests]
+        requests = [
+            setattr(req, 'indices', req.indices.int()) or
+            setattr(req, 'offsets', req.offsets.int()) or
+            (req if req.unpack_3()[2] else setattr(req, 'per_sample_weights', None) or req)
+            for req in requests
+        ]
     warmup_requests, requests = requests[:args.warmups], requests[args.warmups:]
 
     #warmups
